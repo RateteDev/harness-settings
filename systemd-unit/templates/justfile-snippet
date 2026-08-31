@@ -1,0 +1,54 @@
+# ─── Service ───
+
+# Register {what} as a systemd user unit and start it. The unit is symlinked,
+# not copied, so edits to the file in this repo take effect on the next
+# `systemctl --user daemon-reload`.
+[doc('Register and start {what} as a systemd user unit')]
+[group('Service')]
+service-install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Without lingering the unit dies with the login session, so a unit that
+    # installs cleanly would still vanish on logout. Fail loudly rather than
+    # enabling it here: linger changes the whole account, not just this unit.
+    if [ "$(loginctl show-user "$USER" -p Linger --value)" != "yes" ]; then
+        echo "error: lingering is off for $USER, so user units stop at logout" >&2
+        echo "hint: loginctl enable-linger $USER" >&2
+        exit 1
+    fi
+    unit_dir="$HOME/.config/systemd/user"
+    mkdir -p "$unit_dir"
+    ln -sfn "$PWD/infra/systemd/{unit}.service" "$unit_dir/{unit}.service"
+    systemctl --user daemon-reload
+    systemctl --user enable --now {unit}.service
+    echo "installed: {unit}.service -> $PWD/infra/systemd/{unit}.service"
+
+# Unregister the systemd user unit. `disable` already removes every symlink
+# pointing at the unit, hand-made ones included, so the rm below is only for the
+# case it cannot resolve the unit at all — after this repository has moved or
+# been deleted. The recipe exists so that removal is written down: otherwise the
+# only person who can undo an install is the one who ran it.
+[doc('Stop and unregister the systemd user unit')]
+[group('Service')]
+service-uninstall:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    systemctl --user disable --now {unit}.service || true
+    rm -f "$HOME/.config/systemd/user/{unit}.service"
+    systemctl --user daemon-reload
+    echo "uninstalled: {unit}.service"
+
+# Restart the unit with the current definition. systemd owns the process, so
+# this never kills or spawns one itself — doing both would race the unit's own
+# Restart= and leave two processes on one port.
+[doc('Restart {what}')]
+[group('Service')]
+service-restart:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # daemon-reload every time, because the unit file is one of the things a
+    # change can touch: without it, editing the unit and restarting reloads the
+    # OLD definition.
+    systemctl --user daemon-reload
+    systemctl --user restart {unit}.service
+    systemctl --user --no-pager status {unit}.service | head -5

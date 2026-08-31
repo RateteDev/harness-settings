@@ -1,0 +1,54 @@
+# {what} runs as a user unit so it survives a closed SSH session and comes back
+# after a reboot. User scope, not system scope: the toolchain it needs belongs
+# to this one login, and a system unit would only add a User= line and a sudo
+# password. Lingering is what makes a user unit outlive the session, so this
+# unit is only as persistent as `loginctl enable-linger` for this account.
+#
+# There is deliberately no network-online.target dependency: that target does
+# not exist in the user scope, so naming it is a silent no-op that reads like a
+# guarantee. Restart= below is what actually covers a not-yet-ready network.
+
+[Unit]
+Description={one line, what this serves and to whom}
+
+# Both of these belong in [Unit]. In [Service] the interval is dropped with a
+# warning while the burst is applied silently, which leaves the 10s default in
+# force — the one state this pair exists to prevent.
+#
+# The default window is never filled because the backoff below outgrows it, not
+# because failures are too slow: a unit that keeps failing simply retries for
+# ever and never reaches `failed`, where nothing looks at it and OnFailure=
+# never runs. Sized against that backoff, the 10 delays here total about five
+# minutes, leaving the rest of the hour for the attempts' own runtime. Change
+# either number and redo that arithmetic.
+StartLimitIntervalSec=1h
+StartLimitBurst=10
+
+# Reached only after the start limit above, which is why that limit is finite.
+OnFailure=notify-failure@%n.service
+
+[Service]
+# Type=exec, not simple: simple calls the start a success as soon as the fork
+# succeeds, so a missing executable stays invisible to `systemctl start`. exec
+# waits for execve() and reports its failure to whoever asked for the start.
+Type=exec
+WorkingDirectory={repo-path}
+
+# Tools come from the mise shims, not from a fixed install path: the shims
+# resolve the version from this repository's mise.toml, so the unit runs the
+# same toolchain CI does and a version bump stays a one-file edit.
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/share/mise/shims/just {recipe}
+
+# Restart=always, not on-failure: a clean exit of this process is never a state
+# anyone asked for, so there is nothing to distinguish from a crash.
+Restart=always
+
+# Exponential backoff: a transient failure recovers within a second, while a
+# permanent one settles at one attempt a minute instead of hammering.
+RestartSec=1
+RestartSteps=5
+RestartMaxDelaySec=1min
+
+[Install]
+WantedBy=default.target

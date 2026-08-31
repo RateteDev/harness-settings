@@ -1,0 +1,24 @@
+# Same stem as the service it drives, so systemd pairs them without a Unit=
+# line here.
+
+[Unit]
+Description={one line} timer
+
+[Timer]
+# OnCalendar for work whose clock time matters; OnBootSec + OnUnitActiveSec for
+# work where only the interval does. Use one pair or the other, not both.
+OnCalendar={schedule}
+
+# Laptops are suspended and shut down constantly. Without this, every run whose
+# moment passed while the machine was off is simply lost. Only OnCalendar= is
+# affected — on the interval form this directive does nothing.
+Persistent=true
+
+# Only for work that reaches an external service, to keep it off the exact hour
+# every other client also picked. Delete it otherwise: a local job gains nothing
+# and a caught-up run waits this long too, since the catch-up is delayed by it
+# as well.
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

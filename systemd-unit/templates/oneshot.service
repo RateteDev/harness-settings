@@ -1,0 +1,16 @@
+# Started by {unit}.timer, never on its own, which is why this file has no
+# [Install] section: enabling the timer is what schedules the work.
+
+[Unit]
+Description={one line, what this does}
+
+# Delete this line unless a silent failure of this job would actually go
+# unnoticed. Work that fails routinely and recovers on the next run turns the
+# notification channel into noise, and a channel nobody reads reports nothing.
+OnFailure=notify-failure@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory={repo-path}
+Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart={repo-path}/{script}
