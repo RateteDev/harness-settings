@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+skill_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+runtime_root="${skill_root}/runtime"
+
+if [[ ! -d "${runtime_root}/node_modules" ]]; then
+    echo "ERROR: article-preview runtime dependencies are not installed." >&2
+    echo "Run: ${skill_root}/scripts/setup.sh" >&2
+    exit 1
+fi
+
+cd "$runtime_root"
+exec bun apps/article-preview-cli/src/cli.ts "$@"

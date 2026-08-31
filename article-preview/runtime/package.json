@@ -1,0 +1,9 @@
+{
+  "name": "article-preview-skill-runtime",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

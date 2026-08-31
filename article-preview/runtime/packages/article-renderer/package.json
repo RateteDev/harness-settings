@@ -1,0 +1,44 @@
+{
+  "name": "@ratete/article-renderer",
+  "version": "0.0.19",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client/index.ts",
+    "./client-entry": "./src/client/cli-entry.ts",
+    "./fetchers": "./src/fetchers/index.ts",
+    "./format-date": "./src/format-date.ts",
+    "./frontmatter": "./src/frontmatter.ts",
+    "./hast": "./src/hast/index.ts",
+    "./markdown": "./src/markdown/index.ts",
+    "./phrase-wrap": "./src/phrase-wrap.ts",
+    "./svg-to-png": "./src/svg-to-png.ts",
+    "./validation": "./src/validation/index.ts"
+  },
+  "scripts": {},
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "acorn": "^8.16.0",
+    "budoux": "^0.9.0",
+    "github-slugger": "^2.0.0",
+    "hast-util-from-html-isomorphic": "^2.0.0",
+    "hast-util-to-html": "^9.0.5",
+    "mdast-util-to-hast": "^13.2.1",
+    "mermaid": "^11.15.0",
+    "mermaid-isomorphic": "^3.1.0",
+    "playwright": "^1.61.1",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-mdx": "^3.1.1",
+    "remark-parse": "^11.0.0",
+    "shiki": "^4.1.0",
+    "subset-font": "^2.5.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
