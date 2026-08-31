@@ -1,0 +1,19 @@
+---
+name: typescript
+description: |
+  TypeScript プロジェクトのランタイム・lint/format・ロガー・パッケージ初期化の規約スキル。
+  TRIGGER when: TypeScript のコードを書く場合、TS プロジェクトを新規に立ち上げる場合、lint/format やロガーの構成を決める場合。
+  DO NOT TRIGGER when: テストの配置や実行方針を決める場合（testing）。開発コマンドや CI を整備する場合（repo-setup）。
+---
+
+# TypeScript
+
+`references/typescript.md` に規約の本文がある。次のいずれかを決める・確認する必要が生じた時点で読む。
+
+- ランタイムの選定
+- lint / format ツールの構成と設定
+- テスト実行の構成
+- ロガーの選定と使い方
+- `packages/` 配下を新規に初期化する手順
+
+ツールの選定はプロジェクト単位で固定し、その場の判断で変えない。既存の構成に合わせるだけで済む場合、参照は不要。
