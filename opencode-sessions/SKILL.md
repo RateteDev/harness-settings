@@ -1,20 +1,39 @@
 ---
 name: OpenCode Sessions
-description: Find, filter, and export past OpenCode session transcripts (conversation history) from the local SQLite DB or HTTP API. Use when the user asks about past, previous, or other sessions, transcripts, chat history, prompts and replies, or session logs, including filtering by project directory (cwd) or time range.
+description: Report the current OpenCode session or find, filter, and export past session transcripts from the HTTP API or local SQLite DB. Use for the current session ID, model, status, tokens, cache, or cost, and for past or other sessions, chat history, prompts and replies, or session logs.
 ---
 
-# OpenCode セッション検索・エクスポート
+# OpenCode セッション確認・検索・エクスポート
 
-過去のOpenCodeセッション（会話履歴・トランスクリプト）を探して取り出す手順。
+現在のOpenCode sessionを確認し、過去のsession（会話履歴・transcript）を探して取り出す手順。
+
+## 現在のsession
+
+OpenCodeが現在の会話metadataとしてエージェントへ渡したsession IDを`<session-id>`へ入れる。ユーザーへ尋ねたり、session一覧から最新IDを推測したりしない。metadataにIDがなければ取得不能と報告する。
+
+```sh
+opencode2 api get "/api/session/<session-id>" | jq '.data | {id, title, model, outcome, cost, tokens, time}'
+```
+
+結果は稼働中serverから取得した現在値として報告し、次の区別を守る。
+
+- `tokens`と`cost`はsession全体の累積値であり、現在のcontext window使用量ではない。
+- 累積tokenからcontext使用率やcompactionの要否を推定しない。OpenCodeの自動compactionとUIのcontext表示に任せる。
+- OAuthやsubscription経由のmodelでは、`cost`が`0`でも無料利用を意味しない。
+- provider accountのquotaとreset時刻には`harness-usage`を使用する。
+- prompt、transcript、認証情報は、現在sessionのsummaryには含めない。
+
+## 過去のsession
+
 データはユーザー単位で1つのSQLite DBに集約されている。
 
-## 絶対ルール
+### 絶対ルール
 
 1. **DBは必ず読み取り専用で開く**: URIに `?mode=ro` を付ける。稼働中サーバーが常時書き込んでいるため、書き込みは絶対しない。確実にやるなら先に `~/.local/share/opencode/opencode.db*`（-shm/-wal込み）をコピーしてコピー側を読む。
 2. スキーマ（`session_v2` など）は**非公式**。beta版で変わる可能性がある。ツールとして継続利用するならAPI側が安定。
 3. 認証情報（パスワード）を成果物に書き込まない。
 
-## データの場所
+### データの場所
 
 - DB: `~/.local/share/opencode/opencode.db`（WALモード。環境変数 `OPENCODE_DB` で上書き可）
 - 主要テーブル:
@@ -24,7 +43,7 @@ description: Find, filter, and export past OpenCode session transcripts (convers
   - user: トップレベル `text`（表示用は `$.metadata.displayText`）
   - assistant: `$.content[]` に `type: 'reasoning' | 'text' | 'tool'` のパート配列。**textパートを持たない（tool/reasoningのみの）メッセージがある**
 
-## ワークフロー
+### ワークフロー
 
 **1. セッションを探す** — 一覧表示（cwd・時刻でフィルタ可）:
 
@@ -51,7 +70,7 @@ python3 scripts/export_md.py out           # 読みやすいMarkdownに変換
 
 API exportは1セッション数百KBになる（reasoningの暗号化blob等を含む）。発言だけなら utts.sh / DB直が軽い。
 
-## APIを使う場合
+### APIを使う場合
 
 - 一覧: `GET /api/session`（`?limit=` / `?order=asc|desc`。デフォルトは最新50件）
 - エクスポート: `GET /api/session/{id}/export` → `{"info":{...},"messages":[...]}`
@@ -59,6 +78,6 @@ API exportは1セッション数百KBになる（reasoningの暗号化blob等を
 - 認証: `opencode2 api ...` はマネージドサービス（`~/.local/state/opencode/service.json` の url/password）を自動処理する。**明示起動されたサーバー**（`opencode2 serve --port NNNN`）はBasic認証が必要で、ユーザー名 `opencode`、パスワードは `~/.config/opencode/serve.env` の `OPENCODE_SERVER_PASSWORD` か、当該プロセスの環境変数（`tr '\0' '\n' < /proc/<pid>/environ | grep OPENCODE_SERVER`）。
 - サーバーが動いているか: `ss -tlnp | grep opencode2`。401が返ったら認証要。
 
-## 詳細
+### 詳細
 
 - 実行例・生SQL・export形式の詳細は `references/db-and-api.md` を読むこと。
