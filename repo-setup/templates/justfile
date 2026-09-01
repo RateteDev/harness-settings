@@ -1,0 +1,123 @@
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# ─── Setup & Clean ───
+
+# Install dependencies and configure local environment (run once after clone)
+[group('Setup & Clean')]
+setup:
+    git config core.hooksPath .githooks
+    git config core.quotepath false
+    @echo "TODO: implement setup"
+
+# Remove build artifacts and caches. A recipe whose rationale needs more than
+# one line states it here and names its one-line description with [doc]:
+# `just --list` shows only the LAST comment line, so a multi-line comment
+# without [doc] is listed as a sentence fragment.
+[doc('Remove build artifacts and caches')]
+[group('Setup & Clean')]
+clean:
+    @echo "TODO: implement clean"
+
+# ─── Backend ───
+
+# Start backend development server
+[group('Backend')]
+back-dev:
+    @echo "TODO: implement back-dev"
+
+# Build backend
+[group('Backend')]
+back-build:
+    @echo "TODO: implement back-build"
+
+# Run backend lint and format checks without modifying files
+[group('Backend')]
+back-check:
+    @echo "TODO: implement back-check"
+
+# Auto-fix backend lint and format issues
+[group('Backend')]
+back-fix:
+    @echo "TODO: implement back-fix"
+
+# Run backend tests
+[group('Backend')]
+back-test:
+    @echo "TODO: implement back-test"
+
+# Run backend CI (check → test → build)
+[group('Backend')]
+back-ci:
+    just back-check
+    just back-test
+    just back-build
+
+# ─── Frontend ───
+
+# Start frontend development server
+[group('Frontend')]
+front-dev:
+    @echo "TODO: implement front-dev"
+
+# Build frontend
+[group('Frontend')]
+front-build:
+    @echo "TODO: implement front-build"
+
+# Run frontend lint and format checks without modifying files
+[group('Frontend')]
+front-check:
+    @echo "TODO: implement front-check"
+
+# Auto-fix frontend lint and format issues
+[group('Frontend')]
+front-fix:
+    @echo "TODO: implement front-fix"
+
+# Run frontend tests
+[group('Frontend')]
+front-test:
+    @echo "TODO: implement front-test"
+
+# Run frontend CI (check → test → build)
+[group('Frontend')]
+front-ci:
+    just front-check
+    just front-test
+    just front-build
+
+# ─── CI ───
+
+# Run local CI (mirrors remote CI pipeline).
+#
+# The `set shell` at the top of this file does NOT reach a shebang recipe: just
+# writes it to a temp file and only reads its final exit status. Without `-e`
+# here the serial checks below run, fail, and are then overwritten by the exit
+# status of the parallel half, leaving the gate green.
+#
+# A bare `wait` always exits 0 for the same reason, so each background job is
+# awaited by PID instead.
+[doc('Run local CI (mirrors remote CI pipeline)')]
+[group('CI')]
+ci-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just repo-checks
+    just _check-hooks-configured
+    pids=()
+    just back-ci & pids+=($!)
+    just front-ci & pids+=($!)
+    failed=0
+    for pid in "${pids[@]}"; do
+        wait "$pid" || failed=1
+    done
+    exit $failed
+
+# Run repository-wide checks that do not belong to one application
+[group('CI')]
+repo-checks:
+    @echo "TODO: implement repo-checks"
+
+[private]
+_check-hooks-configured:
+    @test "$(git config --get core.hooksPath)" = ".githooks" || { echo "core.hooksPath is not '.githooks' — run 'just setup'"; exit 1; }

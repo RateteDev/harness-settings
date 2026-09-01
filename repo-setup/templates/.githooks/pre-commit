@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Repository-wide invariants belong to no app, so path filters cannot select
+# them. The same recipe also runs in local and remote CI.
+just repo-checks
+
+if git diff --cached --name-only | grep -q "^apps/backend/"; then
+  just back-check
+fi
+
+if git diff --cached --name-only | grep -q "^apps/frontend/"; then
+  just front-check
+fi
