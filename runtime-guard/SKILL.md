@@ -1,35 +1,25 @@
 ---
 name: runtime-guard
 description: |
-  npm/pnpm 系と pip 系の直接実行を PATH 上のガードで抑止し、bun / uv へ誘導する仕組みの管理スキル。対象コマンド・代替先・迂回路の変更手順を持つ。
-  TRIGGER when: ランタイムガードの対象コマンド・代替先・迂回路・派閥を変更する場合。ガードの symlink を張り直す場合。
-  DO NOT TRIGGER when: 通常の依存インストール（bun / uv を使えば済む）。ガードにブロックされた場合 — 警告文が理由・代替・迂回路を出力するため、本スキルを開く利益がない。
+  OpenCodeからのpackage manager直接実行をPermission hookで抑止し、Bun・uvへ誘導するpolicyを管理するスキル。
+  TRIGGER when: 抑止するcommand、代替command、deny message、Permission hookの判定方法を変更する場合。
+  DO NOT TRIGGER when: 通常の依存導入でguardに拒否された場合。拒否理由と代替commandはtool errorが案内する。
 ---
 
-# ランタイムガード
+# Runtime policy
 
-PATH の前方に置いたガードを本物より先に解決させ、直接実行を止める。スキル本文と
-`scripts/` 配下の実行ファイルだけで完結し、旧ホスト固有のパス・環境変数・プラグイン
-キャッシュには依存しない。
+`plugins/runtime-guard/`が実装とtestを所有する。OpenCode Coreのshell scannerが複合commandをcommand resourceへ分解した後、Permission hookが直接実行を判定する。
 
-| 何をするか | 読むもの |
-|---|---|
-| JS 側（`npm` / `npx` / `pnpm` / `pnpx`）を変更する | `references/js-runtime-guard.md` |
-| Python 側（`pip` / `pip3` / `pipx` / `python3`）を変更する | `references/py-runtime-guard.md` |
+PATHの差し替え、同名のwrapper、`real-*`迂回commandは作らない。このpolicyはエージェントの誤操作を防ぐものであり、意図的なshell迂回に対するsecurity boundaryではない。
 
-## 実行時の案内はスクリプトが持つ
+## 変更方法
 
-ブロック時の出力は、理由・代替コマンド・迂回路の三点を必ず含む。`pnpm-lock.yaml` の
-有無のような文脈依存の注意もそこで出し分ける。**この文書に代替表を書き写さない。**
-遭遇する側が読むのは stderr であって参照文書ではなく、書き写せば二重管理になる。
+抑止対象と代替commandは`plugins/runtime-guard/policy.ts`だけで変更する。hook登録は`plugins/runtime-guard/index.js`、判定testは`plugins/runtime-guard/tests/unit/`に置く。
 
-## 設定値の置き場
+変更後はplugin directoryで次を実行する。
 
-代替先はスクリプト内の連想配列に持ち、設定ファイルを別に持たない。1スクリプトが
-所有する値であり、外に出すと読むためのコードの方が値より大きくなる。派閥を変える
-場合はその配列を直接編集する。
+```sh
+just test
+```
 
-## エントリポイント
-
-PATH 上のエントリポイントは各ホストが管理する。このスキルはリンクを作成・更新せず、
-スクリプト自身も呼び出されたリンクのディレクトリを実行時に除外して本物を解決する。
+OpenCode自身のshell構文解析をplugin側へ複製しない。scannerの挙動を確認する必要がある場合は、OpenCode Coreの`packages/core/src/shell/parse.ts`と対応するtestを参照する。
