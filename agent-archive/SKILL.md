@@ -1,9 +1,9 @@
 ---
-name: Agent Archive
+name: agent-archive
 description: agent-archiveでエージェント会話をアーカイブまたは抽出する際に使う。
 ---
 
-# Agent Archive
+# agent-archive
 
 `agent-archive`は信頼済みの利用者向けCLIとして扱う。実装、ローカルDB、内部形式を調査・検証・変更しない。
 
