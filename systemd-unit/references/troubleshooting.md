@@ -32,13 +32,13 @@ systemctl --user show {unit} -p StartLimitIntervalUSec -p StartLimitBurst -p Res
 
 ### 環境変数がユニットから見えない
 
-user マネージャはシェルの `export` を継承しない。
+userマネージャはshellの`export`を継承しない。秘匿値を使うユニットには、ホストの秘密ファイルを読む`EnvironmentFile=`の宣言が必要である。
 
 ```sh
-systemctl --user show-environment | cut -d= -f1
+systemctl --user cat {unit}
 ```
 
-に無ければ、そのユニットからは見えない。`~/.config/environment.d/` に置いて再ログインするか、`systemctl --user import-environment {KEY}` で一時的に注入する。
+宣言が無ければユニット定義へ追加し、`daemon-reload`とユニットの再起動を行う。マネージャ環境への一時的なimportで補わない。
 
 ### 依存先を書いたのに効いていない
 

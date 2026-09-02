@@ -1,45 +1,20 @@
 # 秘匿値の渡し方
 
-| 種類 | 置き場 | 渡し方 |
-|---|---|---|
-| 複数のユニットで共有するもの | `~/.config/environment.d/` 配下（`600`） | user マネージャがログイン時に読む。ユニット側の記述は不要 |
-| アプリ固有のもの | `~/.config/{app}/`（`600`） | `EnvironmentFile=` で個別に渡す |
-| アプリが書き換える状態 | データディレクトリ | 設定ではないので `~/.config` に置かない |
+ホストは秘密情報の正本となるファイルを1本決め、アクセス権を`600`に制限する。shellは起動ファイルからsourceし、systemdユーザーユニットは必要なものだけが`EnvironmentFile=`で同じファイルを読む。
 
-## user マネージャはシェルを継承しない
+`EnvironmentFile=`の宣言は、そのユニットが秘密情報を使うという表明でもある。マネージャの環境へ秘密情報を取り込む`environment.d`は使わず、宣言していないユニットへ値を渡さない。
 
-シェルの初期化ファイルで `export` した値は、ユニットからは見えない。user マネージャが
-読むのは `~/.config/environment.d/` だけである。読まれるのはマネージャの起動時
-（`enable-linger` が有効なら、ログイン時ではなく boot 時）と、`daemon-reload` の実行時。
+`EnvironmentFile=-{path}`のように任意指定にしてはならない。正本が無い場合はユニットを起動せず、設定漏れをその場で露出させる。
 
-```sh
-$EDITOR ~/.config/environment.d/{nn}-{name}.conf
-systemctl --user daemon-reload
-```
+## 共有ファイルの書式
 
-`daemon-reload` は環境ジェネレータを再実行するため、これで反映される。再ログインは要らない。
+同じファイルをshellとsystemdが別々に解釈するため、両方で同じ値になる書式だけを使う。
 
-## 書式の罠
-
-書式は素の `KEY=VALUE` である。次の 3 点は実際に値を壊すため、規約として守る。
-
-| 書き方 | 結果 |
+| 書き方 | 規則 |
 |---|---|
-| `export KEY=...` | **キーごと黙って捨てられる**。シェルの書式ではない |
-| `KEY="..."` | 前後のクォートが除去される |
-| 値に `$` を含む | **`$OTHER` / `${OTHER}` として展開される。エスケープ手段は無い** |
+| `KEY='value'` | 既定。single quote以外をそのまま保持する |
+| `KEY="value"` | 値にsingle quoteを含む場合に使い、backslash、double quote、backtick、dollar signをbackslashでescapeする |
+| `KEY=value` | shellのメタ文字を含まない単純な値に限る |
+| `export KEY=value` | 使わない。`EnvironmentFile=`の代入として解釈されない |
 
-3 つ目が最も危険で、`$` を含むトークンやパスワードは静かに別の文字列になる。症状は
-リモートサービスからの 401 だけで、原因に辿り着く手がかりが無い。`$` を含む値は
-`environment.d` に置かず、`EnvironmentFile=` で個別に渡す。
-
-シェルとの一本化は `set -a; . {file}; set +a` で行える。ただし上記の展開規則はシェルと
-`environment.d` で一致しないため、`$` を含む値では両者が別のものを読むことになる。
-
-## 共有と個別の線引き
-
-`environment.d` の値は**全 user ユニットと `systemctl --user show-environment` から見える**。
-複数のユニットが同じ通知先を使うような値はここが適切だが、アプリ固有の秘匿値を置くと
-無関係なユニットにも渡ることになる。そちらは `EnvironmentFile=` で明示的に渡す。
-
-`Environment=` に秘匿値を直接書いてはならない。`systemctl show` で誰でも読める。
+`Environment=`に秘匿値を直接書いてはならない。ユニット定義の表示から値を読めるため、正本を経由する意図が失われる。
