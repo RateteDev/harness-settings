@@ -1,14 +1,14 @@
-# Codex And ChatGPT Work
+# CodexとChatGPTの利用状況
 
-`scripts/codex-usage.sh` reads `~/.codex/auth.json`, refreshes its OAuth access token through the Codex CLI's OAuth client, atomically saves rotated credentials, then calls `GET https://chatgpt.com/backend-api/wham/usage`.
+`scripts/codex-usage.sh`は`~/.codex/auth.json`を読み、Codex CLIのOAuthクライアント経由でOAuthアクセストークンを更新した後、更新後の認証情報をアトミックに保存してから、`GET https://chatgpt.com/backend-api/wham/usage`を呼び出す。
 
-The response is live quota data. Key fields:
+応答はライブのクォータデータである。主なフィールドは次の通り。
 
 - `rate_limit.primary_window.used_percent`
-- `rate_limit.primary_window.reset_at` and `reset_after_seconds`
-- `rate_limit.secondary_window` when present
-- `additional_rate_limits` for model-specific pools
+- `rate_limit.primary_window.reset_at`と`reset_after_seconds`
+- 存在する場合の`rate_limit.secondary_window`
+- モデル別プールの`additional_rate_limits`
 
-The script requires `curl` and `jq`. A failed refresh means the user must log in again with `codex login`; do not request a token in chat.
+スクリプトには`curl`と`jq`が必要である。トークンの更新に失敗した場合は、ユーザーが`codex login`で再ログインする必要がある。チャットでトークンを要求してはならない。
 
-The WHAM endpoint is undocumented and may change. It reflects the ChatGPT plan associated with the Codex OAuth login, not API billing usage.
+WHAMエンドポイントは非公開で、変更され得る。このエンドポイントが反映するのはCodex OAuthログインに紐づくChatGPTプランであって、API課金の使用量ではない。

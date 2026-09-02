@@ -27,7 +27,7 @@ if [[ "$refresh_status" != 200 ]] || ! jq -e '.access_token and .refresh_token a
   exit 1
 fi
 
-# Refresh tokens rotate, so persist the replacement before making further requests.
+# Refresh tokenはローテーションするため、後続のリクエストの前に差し替え後の認証情報を保存する。
 new_auth=$(mktemp "${auth_file}.XXXXXX")
 jq --slurpfile refreshed "$refresh_response" \
   '.tokens.access_token = $refreshed[0].access_token | .tokens.refresh_token = $refreshed[0].refresh_token | .tokens.id_token = $refreshed[0].id_token | .last_refresh = (now | todateiso8601)' \
