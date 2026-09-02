@@ -25,8 +25,8 @@ description: |
 | `.github/workflows/ci.yaml` | リモートCI |
 | `mise.toml` | ツールチェーン版数。ここが唯一の宣言で、CIもこれを読む |
 | `.githooks/` | commit-msg / pre-commit / pre-push |
-| `AGENTS.md` | エージェント指示書。雛形と書き方はagents-mdスキルが持つ |
-| `CONTRIBUTING.md`・`README.md`・`.gitignore` | 一般的な入口 |
+| `.gitignore` | 一般的な除外設定 |
+| `AGENTS.md` | エージェント指示書。雛形と書き方はagents-md-conventionスキルの`templates/AGENTS.md`が持つ |
 
 ディレクトリ骨格は雛形に含めないため、配置とあわせて作成する。
 
