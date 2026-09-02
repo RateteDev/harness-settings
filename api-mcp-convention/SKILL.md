@@ -2,7 +2,6 @@
 name: api-mcp-convention
 description: |
   API・MCPサーバーなどバックエンドを外部公開する際の共通規約スキル。認証・エラー設計・命名・スキーマ・バージョニング等の規約を定める。
-  TRIGGER when: REST/GraphQL API や MCP サーバーを新規作成・改修する場合、外部公開インターフェースの設計を行う場合。
 ---
 
 # api-mcp-convention

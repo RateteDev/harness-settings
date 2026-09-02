@@ -2,8 +2,6 @@
 name: spec-style
 description: |
   仕様書のスタイル規約スキル。仕様書に書いてはいけないことだけを定める。
-  TRIGGER when: 仕様書（spec / 設計書）の新規作成・改修を依頼された場合、`docs/spec/` 配下のファイルを作成・編集する場合。
-  DO NOT TRIGGER when: 作業ログ・PR本文・README など仕様書以外のドキュメントを書く場合。
 ---
 
 # spec-style

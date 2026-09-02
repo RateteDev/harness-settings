@@ -2,8 +2,6 @@
 name: architecture-decision
 description: |
   重要な設計判断を Architecture Decision Record（ADR）として記録・参照するための規約スキル。ADR の成立条件、置き場、命名、章構成、書き方、監査方法を定める。
-  TRIGGER when: 設計判断を ADR として記録・参照する場合、`docs/adr/` 配下を作成・編集する場合。
-  DO NOT TRIGGER when: 実装プランや作業手順を書く場合、仕様書を書く場合、選択を伴わない調査結果や修正を記録する場合。
 ---
 
 # Architecture Decision Record

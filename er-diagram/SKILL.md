@@ -2,7 +2,6 @@
 name: er-diagram
 description: |
   mermaid erDiagram を人が読むためのドキュメントとして手書きで作成・更新する際の規約スキル。
-  TRIGGER when: DB スキーマの ER 図を mermaid で起こす／更新する場合。
 ---
 
 # er-diagram

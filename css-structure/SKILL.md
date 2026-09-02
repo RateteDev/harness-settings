@@ -2,8 +2,6 @@
 name: css-structure
 description: |
   CSS を Scope（Global / Local）と Role（Tokens / Structure / Design）の2軸で構造化する規約スキル。@layer による Role 表現、テーマ Token、所有者単位のファイル分割、静的検査で強制する規則の範囲を定める。
-  TRIGGER when: CSS を新規作成・修正・リファクタリングする場合、scoped CSS / CSS Modules を整理する場合、Stylelint / PostCSS で CSS 規約を強制する場合。
-  DO NOT TRIGGER when: UI の情報設計・操作性・見出し階層など見た目以前の設計を決める場合（frontend-guidelines）。グラフ・チャートの配色を決める場合（dataviz）。
 ---
 
 # CSS Structure

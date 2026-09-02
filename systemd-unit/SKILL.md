@@ -2,8 +2,6 @@
 name: systemd-unit
 description: |
   常駐プロセスと定期実行を systemd の user ユニットとして構成する規約スキル。ユニットの置き場・書式・失敗時の可視化と、それらの雛形一式を持つ。
-  TRIGGER when: 常駐サーバーや定期実行をマシンに常設する場合、`infra/systemd/` 配下を作成・編集する場合、ユニットが起動しない・再起動を繰り返す場合。
-  DO NOT TRIGGER when: 開発コマンドや CI を整備する場合（repo-setup）。既存リポジトリが規約を満たすか検査する場合（repo-audit）。
 ---
 
 # systemd ユニット

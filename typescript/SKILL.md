@@ -2,8 +2,6 @@
 name: typescript
 description: |
   TypeScript プロジェクトのランタイム・lint/format・ロガー・パッケージ初期化の規約スキル。
-  TRIGGER when: TypeScript のコードを書く場合、TS プロジェクトを新規に立ち上げる場合、lint/format やロガーの構成を決める場合。
-  DO NOT TRIGGER when: テストの配置や実行方針を決める場合（testing）。開発コマンドや CI を整備する場合（repo-setup）。
 ---
 
 # TypeScript

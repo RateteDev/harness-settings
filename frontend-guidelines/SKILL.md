@@ -2,8 +2,6 @@
 name: frontend-guidelines
 description: |
   フロントエンドUIの操作性・情報設計・ズーム耐性・見出し階層・アップロード体験・ヘッダー設計を一貫させる設計指針。装飾ではなく、読みやすく操作しやすく破綻しにくいUIを作るために使う。
-  TRIGGER when: HTML/CSS/UIコンポーネントを新規作成・改修する場合、画面のレイアウト・配色・アイコン・多言語対応・URL設計を決める場合。
-  DO NOT TRIGGER when: グラフ・チャートを描く場合（dataviz）。単体HTMLへの変換や設問フォームの生成（article-preview / web-page-to-html / html-ask）。
 ---
 
 # 基本姿勢

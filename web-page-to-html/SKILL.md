@@ -2,8 +2,6 @@
 name: web-page-to-html
 description: |
   WebページをCSS埋め込み・URL絶対化した単一HTMLへ変換し、必要なら現在のagent自身が翻訳版も作る。
-  TRIGGER when: 「ページをHTMLにして」「記事を保存して」「翻訳版を作って」などWebページの単一HTML化・翻訳を依頼された場合。
-  DO NOT TRIGGER when: MD/MDXのHTML変換（article-previewスキルの担当）。
 ---
 
 # web-page-to-html

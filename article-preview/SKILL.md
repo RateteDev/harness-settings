@@ -2,8 +2,6 @@
 name: article-preview
 description: |
   MD/MDXを読みやすい記事styleの自己完結HTMLへ変換し、Linux host上で表示を検証する。
-  TRIGGER when: 「HTMLで出して」「記事にして」「プレビュー出して」などMD/MDXのHTML化を依頼された場合。
-  DO NOT TRIGGER when: WebページURLの単一HTML化（web-page-to-htmlスキルの担当）。
 ---
 
 # article-preview

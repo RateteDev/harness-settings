@@ -2,8 +2,6 @@
 name: commit-convention
 description: |
   コミットメッセージの件名フォーマットと本文構成の規約スキル。通常コミットとマージコミットの両方を対象とする。
-  TRIGGER when: git commit を作成する場合、コミットメッセージを書く場合、マージコミットの文面を用意する場合。
-  DO NOT TRIGGER when: commitを作成せず、開発基盤の構成だけを設計する場合。
 ---
 
 # コミットメッセージ

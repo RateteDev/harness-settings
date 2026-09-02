@@ -2,8 +2,6 @@
 name: runtime-guard
 description: |
   OpenCodeからのpackage manager直接実行をPermission hookで抑止し、Bun・uvへ誘導するpolicyを管理するスキル。
-  TRIGGER when: 抑止するcommand、代替command、deny message、Permission hookの判定方法を変更する場合。
-  DO NOT TRIGGER when: 通常の依存導入でguardに拒否された場合。拒否理由と代替commandはtool errorが案内する。
 ---
 
 # Runtime policy

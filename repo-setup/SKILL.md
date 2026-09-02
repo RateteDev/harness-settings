@@ -2,8 +2,6 @@
 name: repo-setup
 description: |
   リポジトリの開発基盤を構築・監査するスキル。ディレクトリ骨格・justfile・CI・Gitフックの規約、雛形、機械検査とエージェント検査を持つ。
-  TRIGGER when: リポジトリを新規に立ち上げる場合、開発コマンドやCI、Gitフックを追加・変更する場合、既存リポジトリの開発基盤を監査する場合。
-  DO NOT TRIGGER when: コミットメッセージを書く場合（commit-convention）。アプリケーションのコードを書く場合（typescript / frontend-guidelines）。
 ---
 
 # リポジトリの開発基盤
