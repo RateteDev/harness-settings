@@ -6,7 +6,7 @@ description: |
 
 # systemd ユニット
 
-規約と雛形を持つ。検査は repo-audit が `audit.sh` で行う。
+規約と雛形を持つ。検査はrepo-setupの`scripts/audit.sh`が行う。
 
 | 何をするか | 読むもの |
 |---|---|
@@ -93,7 +93,7 @@ description: |
 
 ## 導入と撤去
 
-`templates/justfile-snippet` を対象リポジトリの justfile に追記し、プレースホルダを埋める。`service-install` / `service-uninstall` / `service-restart` の 3 本が入る。前 2 本は必須で、repo-audit が名前を検査する。`service-restart` は、そのリポジトリに既により内容の厚い再起動レシピがあるなら省いてよい。
+`templates/justfile-snippet` を対象リポジトリの justfile に追記し、プレースホルダを埋める。`service-install` / `service-uninstall` / `service-restart` の 3 本が入る。前 2 本は必須で、repo-setupの監査（`scripts/audit.sh`）が名前を検査する。`service-restart` は、そのリポジトリに既により内容の厚い再起動レシピがあるなら省いてよい。
 
 ユニットを 2 本以上持つリポジトリでは、`{unit}` を埋める代わりに `infra/systemd/*` を走査する形にする。後から足したユニットが、レシピを書き換えなくても登録される。その際、`[Install]` を持たないユニット（timer に起こされる oneshot）は `enable` の対象から外すこと。有効化すると、そのバッチが起動時にも走る。
 

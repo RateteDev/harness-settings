@@ -52,7 +52,7 @@ systemctl --user list-units --type=target --all | grep {target}
 
 ## ホスト側の点検
 
-リポジトリ検査（repo-audit）の対象外。年に数回で足りる。
+リポジトリ検査（repo-setupの`scripts/audit.sh`）の対象外。年に数回で足りる。
 
 ```sh
 # 実体ファイルが紛れ込んでいないか。symlink 以外は Git の外にある
