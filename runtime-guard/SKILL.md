@@ -1,7 +1,7 @@
 ---
 name: runtime-guard
 description: |
-  OpenCodeからのpackage manager直接実行をPermission hookで抑止し、Bun・uvへ誘導するpolicyを管理するスキル。
+  OpenCodeからのpackage manager直接実行をPermission hookで抑止し、Bun・uvへ誘導するpolicy。policyの変更・管理で使う。
 ---
 
 # Runtime policy

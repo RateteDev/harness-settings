@@ -1,6 +1,6 @@
 ---
 name: agents-md-convention
-description: リポジトリの `AGENTS.md` を作成・編集・削除などの操作をする場合、リポジトリやその環境の変更を受けて常時指示を修正する場合。
+description: リポジトリの`AGENTS.md`の書き方規約。`AGENTS.md`の作成・編集や、環境の変化に伴う常時指示の修正で使う。
 ---
 
 # AGENTS.md の書き方

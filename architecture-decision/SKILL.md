@@ -1,7 +1,7 @@
 ---
 name: architecture-decision
 description: |
-  重要な設計判断を Architecture Decision Record（ADR）として記録・参照するための規約スキル。ADR の成立条件、置き場、命名、章構成、書き方、監査方法を定める。
+  重要な設計判断を Architecture Decision Record（ADR）として記録するときに従う規約。成立条件、置き場、命名、章構成、書き方、監査方法を定める。
 ---
 
 # Architecture Decision Record

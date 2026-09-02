@@ -1,7 +1,7 @@
 ---
 name: typescript
 description: |
-  TypeScript プロジェクトのランタイム・lint/format・ロガー・パッケージ初期化の規約スキル。
+  TypeScriptのコードを書くとき、TSプロジェクトを立ち上げるときに従う規約。ランタイム、lint/format、ロガー、パッケージ初期化を定める。
 ---
 
 # TypeScript

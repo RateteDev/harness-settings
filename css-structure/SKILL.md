@@ -1,7 +1,7 @@
 ---
 name: css-structure
 description: |
-  CSS を Scope（Global / Local）と Role（Tokens / Structure / Design）の2軸で構造化する規約スキル。@layer による Role 表現、テーマ Token、所有者単位のファイル分割、静的検査で強制する規則の範囲を定める。
+  CSSの作成・改修・リファクタリングで従う構造化規約。Scope（Global / Local）と Role（Tokens / Structure / Design）の2軸、@layerによるRole表現、テーマToken、所有者単位のファイル分割、静的検査で強制する規則の範囲を定める。
 ---
 
 # CSS Structure
