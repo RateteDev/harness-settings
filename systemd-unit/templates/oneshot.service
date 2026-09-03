@@ -11,6 +11,6 @@ OnFailure=notify-failure@%n.service
 
 [Service]
 Type=oneshot
-WorkingDirectory={repo-path}
+WorkingDirectory=@REPO_DIR@
 Environment=PATH=%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart={repo-path}/{script}
+ExecStart=@REPO_DIR@/{script}

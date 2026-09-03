@@ -55,8 +55,11 @@ systemctl --user list-units --type=target --all | grep {target}
 リポジトリ検査（repo-setupの`scripts/audit.sh`）の対象外。年に数回で足りる。
 
 ```sh
-# 実体ファイルが紛れ込んでいないか。symlink 以外は Git の外にある
-find ~/.config/systemd/user -maxdepth 1 -type f
+# テンプレートが未展開で残っていないか（`@REPO_DIR@` が残っていたら install の再実行が必要）
+grep -rl '@REPO_DIR@' ~/.config/systemd/user 2>/dev/null
+
+# リポジトリ由来のユニットが symlink のまま混ざっていないか
+find ~/.config/systemd/user -maxdepth 1 -type l
 
 # set-property の残骸が無いか
 ls -A ~/.config/systemd/user.control 2>/dev/null

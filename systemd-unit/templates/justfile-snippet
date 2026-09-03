@@ -1,8 +1,8 @@
 # ─── Service ───
 
-# Register {what} as a systemd user unit and start it. The unit is symlinked,
-# not copied, so edits to the file in this repo take effect on the next
-# `systemctl --user daemon-reload`.
+# Register {what} as a systemd user unit and start it. The unit file in this
+# repo is a template: install substitutes @REPO_DIR@ with the repo's actual
+# location, so the unit does not depend on where the repo lives.
 [doc('Register and start {what} as a systemd user unit')]
 [group('Service')]
 service-install:
@@ -18,10 +18,10 @@ service-install:
     fi
     unit_dir="$HOME/.config/systemd/user"
     mkdir -p "$unit_dir"
-    ln -sfn "$PWD/infra/systemd/{unit}.service" "$unit_dir/{unit}.service"
+    sed "s|@REPO_DIR@|$PWD|g" infra/systemd/{unit}.service > "$unit_dir/{unit}.service"
     systemctl --user daemon-reload
     systemctl --user enable --now {unit}.service
-    echo "installed: {unit}.service -> $PWD/infra/systemd/{unit}.service"
+    echo "installed: {unit}.service -> rendered from $PWD/infra/systemd/{unit}.service"
 
 # Unregister the systemd user unit. `disable` already removes every symlink
 # pointing at the unit, hand-made ones included, so the rm below is only for the

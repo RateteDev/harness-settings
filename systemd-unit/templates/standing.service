@@ -32,7 +32,7 @@ OnFailure=notify-failure@%n.service
 # succeeds, so a missing executable stays invisible to `systemctl start`. exec
 # waits for execve() and reports its failure to whoever asked for the start.
 Type=exec
-WorkingDirectory={repo-path}
+WorkingDirectory=@REPO_DIR@
 
 # Tools come from the mise shims, not from a fixed install path: the shims
 # resolve the version from this repository's mise.toml, so the unit runs the
