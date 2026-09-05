@@ -13,7 +13,6 @@ description: |
 | 開発コマンドを定義・変更する | `references/justfile.md` |
 | CIを構成する | `references/ci.md` |
 | 既存リポジトリを監査する | `references/audit.md` |
-| 常駐プロセスや定期実行をマシンに常設する | systemd-unitスキル |
 
 ## 新規リポジトリの立ち上げ
 
@@ -37,7 +36,7 @@ assets/      静的アセット
 data/        データファイル
 docs/adr/    設計判断の記録
 docs/spec/   仕様書
-infra/       デプロイと常設の定義（systemdユニットなど）
+infra/       製品のデプロイに必要な構成
 ```
 
 配置後に`git config core.hooksPath .githooks`を実行し、フックを有効化する。

@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+# systemd user unitの異常を記録し、継続障害を通知先非依存のイベントへ変換する。
+
+set -euo pipefail
+temporary_file=""
+trap '[[ -z "$temporary_file" ]] || rm -f "$temporary_file"' EXIT
+
+usage() {
+  cat <<'EOF'
+Usage: unit-failure-monitor <command> [arguments]
+
+Commands:
+  observe UNIT INCIDENT RESULT TIMER POLICY Record a stop and start the grace-period timer.
+  check UNIT INCIDENT EVENT                 Convert a continuing failure into an event.
+
+Example: unit-failure-monitor check app.service /run/user/1000/incident.json /run/user/1000/event.json
+EOF
+}
+
+usage_error() {
+  usage >&2
+  exit 2
+}
+
+validate_unit() {
+  local unit="$1"
+  [[ "$unit" =~ ^[A-Za-z0-9_.@:-]+\.(service|timer)$ ]] || {
+    echo "unit-failure-monitor: invalid unit name: $unit" >&2
+    exit 2
+  }
+  systemctl --user cat -- "$unit" >/dev/null 2>&1 || {
+    echo "unit-failure-monitor: unit not found: $unit" >&2
+    exit 2
+  }
+}
+
+validate_path() {
+  [[ "$1" = /* ]] || {
+    echo "unit-failure-monitor: state file must be absolute" >&2
+    exit 2
+  }
+}
+
+property() {
+  systemctl --user show "$1" --property="$2" --value
+}
+
+write_incident() {
+  local unit="$1" incident_file="$2" temporary
+  mkdir -p "$(dirname "$incident_file")"
+  temporary="${incident_file}.tmp.$$"
+  jq -n \
+    --arg firstObservedAt "$(date --utc --iso-8601=seconds)" \
+    --arg unit "$unit" \
+    --argjson baselineRestarts "$(property "$unit" NRestarts)" \
+    '{
+      schemaVersion: 1,
+      unit: $unit,
+      firstObservedAt: $firstObservedAt,
+      baselineRestarts: $baselineRestarts
+    }' > "$temporary"
+  if (set -o noclobber; cat "$temporary" > "$incident_file") 2>/dev/null; then
+    :
+  fi
+  rm -f "$temporary"
+}
+
+observe() {
+  [[ $# -eq 5 ]] || usage_error
+  local unit="$1" incident_file="$2" service_result="$3" timer_template="$4" policy="$5" timer
+  validate_unit "$unit"
+  validate_path "$incident_file"
+  [[ "$timer_template" =~ ^[A-Za-z0-9_.:-]+@\.timer$ ]] || {
+    echo "unit-failure-monitor: invalid timer template: $timer_template" >&2
+    exit 2
+  }
+  timer="${timer_template/@.timer/@${unit}.timer}"
+  [[ "$policy" == "all-stops" || "$policy" == "failures-only" ]] || {
+    echo "unit-failure-monitor: invalid observation policy: $policy" >&2
+    exit 2
+  }
+
+  if [[ "$service_result" == "success" && "$policy" == "failures-only" ]]; then
+    rm -f "$incident_file"
+    systemctl --user stop --no-block "$timer" >/dev/null 2>&1 || true
+    exit 0
+  fi
+
+  write_incident "$unit" "$incident_file"
+  systemctl --user start --no-block "$timer"
+}
+
+check() {
+  [[ $# -eq 3 ]] || usage_error
+  local unit="$1" incident_file="$2" event_file="$3"
+  local active_state sub_state result description exit_code exit_status restart_count
+  local baseline_restarts first_observed_at observed_at first_epoch observed_epoch unavailable_seconds reason
+
+  validate_unit "$unit"
+  validate_path "$incident_file"
+  validate_path "$event_file"
+  [[ -f "$incident_file" ]] || exit 1
+  jq -e --arg unit "$unit" '
+    .schemaVersion == 1 and .unit == $unit and
+    (.firstObservedAt | type == "string") and
+    (.baselineRestarts | type == "number")
+  ' "$incident_file" >/dev/null || {
+    echo "unit-failure-monitor: invalid incident file" >&2
+    exit 2
+  }
+
+  active_state="$(property "$unit" ActiveState)"
+  sub_state="$(property "$unit" SubState)"
+  result="$(property "$unit" Result)"
+  restart_count="$(property "$unit" NRestarts)"
+  baseline_restarts="$(jq -r '.baselineRestarts' "$incident_file")"
+
+  # 自動再起動が2回以上続く場合は、確認時点でprocessが動いていても継続異常とみなす。
+  if [[ "$restart_count" -gt $((baseline_restarts + 1)) ]]; then
+    reason="restart-loop"
+  elif [[ "$active_state" == "active" ]]; then
+    rm -f "$incident_file" "$event_file"
+    exit 1
+  elif [[ "$result" == "success" ]]; then
+    rm -f "$incident_file" "$event_file"
+    exit 1
+  fi
+
+  description="$(property "$unit" Description)"
+  exit_code="$(property "$unit" ExecMainCode)"
+  exit_status="$(property "$unit" ExecMainStatus)"
+
+  if [[ -z "${reason:-}" ]]; then
+    case "$exit_status" in
+      203) reason="executable-not-found" ;;
+      126) reason="permission-denied" ;;
+      127) reason="command-not-found" ;;
+      *)
+        case "$result" in
+          exit-code) reason="exit-code" ;;
+          signal) reason="signal" ;;
+          timeout) reason="timeout" ;;
+          start-limit-hit) reason="start-limit-hit" ;;
+          *) reason="systemd-failure" ;;
+        esac ;;
+    esac
+  fi
+
+  first_observed_at="$(jq -r '.firstObservedAt' "$incident_file")"
+  observed_at="$(date --utc --iso-8601=seconds)"
+  first_epoch="$(date --date="$first_observed_at" +%s)"
+  observed_epoch="$(date --date="$observed_at" +%s)"
+  unavailable_seconds=$((observed_epoch - first_epoch))
+  (( unavailable_seconds >= 0 )) || unavailable_seconds=0
+
+  mkdir -p "$(dirname "$event_file")"
+  temporary_file="${event_file}.tmp.$$"
+  jq -n \
+    --arg firstObservedAt "$first_observed_at" \
+    --arg observedAt "$observed_at" \
+    --arg host "$(hostname)" \
+    --arg unit "$unit" \
+    --arg description "$description" \
+    --arg activeState "$active_state" \
+    --arg subState "$sub_state" \
+    --arg result "$result" \
+    --arg exitCode "$exit_code" \
+    --argjson exitStatus "${exit_status:-0}" \
+    --argjson restartCount "${restart_count:-0}" \
+    --argjson unavailableForSeconds "$unavailable_seconds" \
+    --arg reason "$reason" \
+    --arg journalCommand "journalctl --user -u $unit -n 50 --no-pager" \
+    '{
+      schemaVersion: 1,
+      type: "unit-unavailable",
+      firstObservedAt: $firstObservedAt,
+      observedAt: $observedAt,
+      host: $host,
+      unit: $unit,
+      description: $description,
+      activeState: $activeState,
+      subState: $subState,
+      result: $result,
+      exitCode: $exitCode,
+      exitStatus: $exitStatus,
+      restartCount: $restartCount,
+      unavailableForSeconds: $unavailableForSeconds,
+      reason: $reason,
+      journalCommand: $journalCommand
+    }' > "$temporary_file"
+  mv "$temporary_file" "$event_file"
+  temporary_file=""
+  rm -f "$incident_file"
+}
+
+[[ $# -gt 0 ]] || usage_error
+command="$1"
+shift
+case "$command" in
+  --help|-h) usage; exit 0 ;;
+  observe) observe "$@" ;;
+  check) check "$@" ;;
+  *) usage_error ;;
+esac

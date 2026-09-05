@@ -47,14 +47,6 @@
 - versionが他の設定へ重複していないか。
 - lockfileとinstallerが複数のpackage managerを誤って併用していないか。
 
-### systemdユニット
-
-対象が無ければ省略する。存在する場合はsystemd-unitスキルを基準に、次を確認する。
-
-- `Restart=`、timer、`Persistent=`、`RandomizedDelaySec`、`OnFailure=`の選択がprocessの性質に合うか。
-- commentがscope、restart、toolchain解決方式の判断理由を述べているか。
-- install・uninstall recipeが実際のunitを過不足なく扱うか。
-
 ### 規約と実効性
 
 - templateから配置されたファイルが存在するだけでなく、実際の開発フローで呼ばれているか。

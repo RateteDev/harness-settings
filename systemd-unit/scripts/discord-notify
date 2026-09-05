@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# 正規化済みの監視イベントをDiscord向けに整形して配送する。
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: discord-notify [--render] <event-file>
+
+Options:
+  --render  Print the Discord payload without sending it.
+
+Example: discord-notify --render unit.event.json
+EOF
+}
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
+fi
+
+render_only=0
+if [[ "${1:-}" == "--render" ]]; then
+  render_only=1
+  shift
+fi
+event_file="${1:?usage: discord-notify [--render] <event-file>}"
+[[ -f "$event_file" ]] || { echo "discord-notify: event file not found: $event_file" >&2; exit 1; }
+
+jq -e '
+  .schemaVersion == 1 and
+  .type == "unit-unavailable" and
+  (.observedAt | type == "string") and
+  (.host | type == "string") and
+  (.unit | type == "string") and
+  (.description | type == "string") and
+  (.activeState | type == "string") and
+  (.subState | type == "string") and
+  (.result | type == "string") and
+  (.exitStatus | type == "number") and
+  (.restartCount | type == "number") and
+  (.unavailableForSeconds | type == "number") and
+  (.reason | type == "string") and
+  (.journalCommand | type == "string")
+' "$event_file" >/dev/null || {
+  echo "discord-notify: unsupported event schema" >&2
+  exit 1
+}
+
+payload="$(jq -c '
+def cause:
+  if .reason == "executable-not-found" then "実行ファイルが見つからないため起動できません。"
+  elif .reason == "permission-denied" then "起動対象を実行する権限がありません。"
+  elif .reason == "command-not-found" then "起動コマンドが見つかりません。"
+  elif .reason == "exit-code" then "プロセスが終了コード\(.exitStatus)で停止しました。"
+  elif .reason == "signal" then "プロセスがシグナルによって停止しました。"
+  elif .reason == "timeout" then "起動または停止処理が時間切れになりました。"
+  elif .reason == "start-limit-hit" then "再起動回数が起動制限に達しました。"
+  elif .reason == "restart-loop" then "再起動を繰り返しており、安定稼働していません。"
+  else "systemdが\(.result)として失敗を記録しました。"
+  end;
+{
+  allowed_mentions: {parse: []},
+  embeds: [{
+    title: ("🔴 " + .unit + " が" + ((.unavailableForSeconds / 60 | floor) | tostring) + "分以上停止しています"),
+    description: ((.description // "") | .[0:1000]),
+    color: 15548997,
+    timestamp: .observedAt,
+    fields: [
+      {name: "ホスト", value: ("`" + .host + "`"), inline: true},
+      {name: "状態", value: ("`" + .activeState + " / " + .subState + "`"), inline: true},
+      {name: "再起動", value: ((.restartCount | tostring) + " 回"), inline: true},
+      {name: "原因", value: ((cause)[0:1024]), inline: false},
+      {name: "確認", value: ("```sh\n" + .journalCommand[0:900] + "\n```"), inline: false}
+    ],
+    footer: {text: ("result=" + .result + " status=" + (.exitStatus | tostring))}
+  }]
+}' "$event_file")"
+
+if [[ "$render_only" -eq 1 ]]; then
+  printf '%s\n' "$payload"
+  exit 0
+fi
+
+: "${DISCORD_WEBHOOK_URL:?discord-notify: DISCORD_WEBHOOK_URL is unset}"
+[[ "$DISCORD_WEBHOOK_URL" =~ ^https://discord\.com/api/webhooks/[A-Za-z0-9._/-]+$ ]] || {
+  echo "discord-notify: DISCORD_WEBHOOK_URL is invalid" >&2
+  exit 1
+}
+curl --silent --show-error --fail \
+  --request POST \
+  --header 'Content-Type: application/json' \
+  --config /dev/fd/3 \
+  --data-binary @- \
+  <<<"$payload" \
+  3<<<"url = \"$DISCORD_WEBHOOK_URL\"" \
+  >/dev/null

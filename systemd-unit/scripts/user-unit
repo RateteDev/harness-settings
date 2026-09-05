@@ -1,0 +1,624 @@
+#!/usr/bin/env bash
+# このホスト向けに具体化したsystemd user unitを管理する。
+
+set -euo pipefail
+unset CDPATH
+
+unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+monitor_state_dir="$(systemd-path user-state-private)/systemd-unit-monitor"
+generated_marker="# Generated-By: systemd-unit skill"
+toolchain_path="%h/.local/share/mise/shims:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+stage=""
+generated_stage=""
+monitor_stage=""
+target_temporary=""
+
+cleanup() {
+  [[ -z "$stage" ]] || rm -rf "$stage"
+  [[ -z "$generated_stage" ]] || rm -rf "$generated_stage"
+  [[ -z "$monitor_stage" ]] || rm -rf "$monitor_stage"
+  [[ -z "$target_temporary" ]] || rm -f "$target_temporary"
+}
+trap cleanup EXIT
+
+usage() {
+  cat <<'EOF'
+Usage: user-unit <command> [options]
+
+Commands:
+  add standing [options]                    Generate and install a continuously running service.
+  add oneshot [options]                     Generate and install a scheduled service and timer.
+  monitor-init [--secrets-file FILE]        Install the shared failure monitoring units.
+  check FILE...                             Verify raw unit files without installing them.
+  install [--replace] --source TEXT FILE... Install raw unit files as an escape hatch.
+  uninstall UNIT...                         Disable and remove managed units.
+  restart UNIT...                           Reload and restart installed units.
+  doctor                                    Show units managed by this tool.
+
+Options:
+  --name NAME           Set the unit name without a suffix.
+  --description DESC    Set the systemd description.
+  --working-dir DIR     Set and resolve the working directory.
+  --exec CMD            Set the complete ExecStart value.
+  --schedule SCHEDULE   Set OnCalendar for a oneshot timer.
+  --no-monitor          Omit monitoring; otherwise it is initialized automatically.
+  --secrets-file FILE   Secrets file for monitor-init; required unless USER_UNIT_SECRETS_FILE is set.
+  --source TEXT         Record the source when installing raw units.
+  --replace             Replace a reviewed unmanaged unit.
+
+Example: user-unit add standing --name notes --description "Notes server" --working-dir ~/own/notes --exec "/usr/bin/env just serve"
+EOF
+}
+
+usage_error() {
+  usage >&2
+  exit 2
+}
+
+validate_name() {
+  [[ "$1" =~ ^[A-Za-z0-9_.@:-]+\.(service|timer)$ ]] || {
+    echo "user-unit: invalid unit name: $1" >&2
+    exit 2
+  }
+}
+
+validate_stem() {
+  [[ "$1" =~ ^[A-Za-z0-9_.:-]+$ && "$1" != *.service && "$1" != *.timer ]] || {
+    echo "user-unit: invalid unit name stem: $1" >&2
+    exit 2
+  }
+}
+
+validate_one_line() {
+  local label="$1" value="$2"
+  [[ -n "$value" && "$value" != *$'\n'* && "$value" != *$'\r'* ]] || {
+    echo "user-unit: $label must be a non-empty single line" >&2
+    exit 2
+  }
+}
+
+quote_unit_argument() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf '"%s"' "$value"
+}
+
+validate_file() {
+  local file="$1" name
+  [[ -f "$file" ]] || { echo "user-unit: unit file not found: $file" >&2; exit 1; }
+  name="$(basename "$file")"
+  validate_name "$name"
+  if grep -qE '@[A-Z][A-Z0-9_]*@|\{[a-z][^}]*\}' "$file"; then
+    echo "user-unit: unresolved placeholder in $file" >&2
+    exit 1
+  fi
+  validate_environment_files "$file"
+  systemd-analyze --user verify "$file"
+}
+
+validate_environment_files() {
+  local unit_file="$1" declared path mode line line_number invalid_lines
+  while IFS= read -r declared; do
+    declared="${declared#*=}"
+    declared="${declared#"${declared%%[![:space:]]*}"}"
+    declared="${declared%"${declared##*[![:space:]]}"}"
+    [[ -n "$declared" ]] || continue
+    if [[ "$declared" == -* ]]; then
+      echo "user-unit: optional EnvironmentFile is not allowed: $unit_file" >&2
+      exit 1
+    fi
+    if [[ "$declared" == \"*\" || "$declared" == \'*\' ]]; then
+      declared="${declared:1:${#declared}-2}"
+    fi
+    path="${declared//\%h/$HOME}"
+    [[ "$path" = /* && -f "$path" ]] || {
+      echo "user-unit: EnvironmentFile not found: $path" >&2
+      exit 1
+    }
+    mode="$(stat -c '%a' "$path")"
+    [[ "$mode" == "600" ]] || {
+      echo "user-unit: EnvironmentFile must have mode 600: $path" >&2
+      exit 1
+    }
+    line_number=0
+    invalid_lines=""
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line_number=$((line_number + 1))
+      [[ "$line" =~ ^[[:space:]]*($|#|\;) ]] && continue
+      if ! validate_environment_assignment "$line"; then
+        invalid_lines+="${invalid_lines:+,}${line_number}"
+      fi
+    done < "$path"
+    [[ -z "$invalid_lines" ]] || {
+      echo "user-unit: invalid EnvironmentFile assignment at line(s) $invalid_lines: $path" >&2
+      exit 1
+    }
+  done < <(grep -vE '^[[:space:]]*[#;]' "$unit_file" | grep -E '^[[:space:]]*EnvironmentFile[[:space:]]*=' || true)
+}
+
+validate_environment_assignment() {
+  local line="$1" value inner character index escaped=0
+  [[ "$line" =~ ^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=(.*)$ ]] || return 1
+  value="${BASH_REMATCH[1]}"
+
+  if [[ "$value" == \'* ]]; then
+    [[ "${#value}" -ge 2 && "${value: -1}" == "'" ]] || return 1
+    inner="${value:1:${#value}-2}"
+    [[ "$inner" != *"'"* ]]
+    return
+  fi
+
+  if [[ "$value" == \"* ]]; then
+    [[ "${#value}" -ge 2 && "${value: -1}" == '"' ]] || return 1
+    inner="${value:1:${#value}-2}"
+    for ((index = 0; index < ${#inner}; index++)); do
+      character="${inner:index:1}"
+      if [[ "$escaped" -eq 1 ]]; then
+        [[ "$character" == "\\" || "$character" == '"' || "$character" == '$' || "$character" == '`' ]] || return 1
+        escaped=0
+      elif [[ "$character" == "\\" ]]; then
+        escaped=1
+      elif [[ "$character" == '"' || "$character" == '$' || "$character" == '`' ]]; then
+        return 1
+      fi
+    done
+    [[ "$escaped" -eq 0 ]]
+    return
+  fi
+
+  [[ "$value" =~ ^[A-Za-z0-9_./,:@%+=-]*$ ]]
+}
+
+write_standing_unit() {
+  local file="$1" description="$2" working_directory="$3" exec_start="$4" monitor="$5" monitor_path="$6"
+  local quoted_monitor
+  quoted_monitor="$(quote_unit_argument "$monitor_path")"
+
+  cat > "$file" <<EOF
+# このプロセスのtoolchainはlogin userに属するためuser unitとし、session終了後の存続はlingerに委ねる。
+[Unit]
+Description=$description
+
+# 起動制限は[Unit]に置く。[Service]ではintervalが無視され、既定の10秒窓へ戻る。
+# 10回分のbackoffは合計約5分であり、1時間の窓にprocess実行時間として約55分を残す。
+StartLimitIntervalSec=1h
+StartLimitBurst=10
+
+[Service]
+Type=exec
+WorkingDirectory=$working_directory
+
+# 固定install先ではなくmise shimsを使い、repositoryのmise.tomlからCIと同じ版を解決する。
+Environment=PATH=$toolchain_path
+ExecStart=$exec_start
+EOF
+  if [[ "$monitor" -eq 1 ]]; then
+    cat >> "$file" <<EOF
+# 既に動くtimerは再始動されないため、猶予時間は最初の停止から測られる。
+ExecStopPost=$quoted_monitor observe %n %S/systemd-unit-monitor/%n.incident.json \$SERVICE_RESULT unit-failure-monitor@.timer all-stops
+EOF
+  fi
+  cat >> "$file" <<'EOF'
+
+# 常駐processの自発的な正常終了も要求された状態ではないため、on-failureではなくalwaysとする。
+Restart=always
+RestartSec=1
+RestartSteps=5
+RestartMaxDelaySec=1min
+
+[Install]
+WantedBy=default.target
+EOF
+}
+
+write_oneshot_service() {
+  local file="$1" description="$2" working_directory="$3" exec_start="$4" monitor="$5" monitor_path="$6"
+  local quoted_monitor
+  quoted_monitor="$(quote_unit_argument "$monitor_path")"
+
+  cat > "$file" <<EOF
+# timerだけが起動するためserviceに[Install]を書かず、有効化対象をtimerへ一本化する。
+# このbatchのtoolchainはlogin userに属するためuser unitとし、session終了後の存続はlingerに委ねる。
+[Unit]
+Description=$description
+
+[Service]
+Type=oneshot
+WorkingDirectory=$working_directory
+
+# 固定install先ではなくmise shimsを使い、repositoryのmise.tomlからCIと同じ版を解決する。
+Environment=PATH=$toolchain_path
+ExecStart=$exec_start
+EOF
+  if [[ "$monitor" -eq 1 ]]; then
+    cat >> "$file" <<EOF
+# batchも失敗が継続すれば通知対象だが、成功時は監視を始めない。
+ExecStopPost=$quoted_monitor observe %n %S/systemd-unit-monitor/%n.incident.json \$SERVICE_RESULT unit-failure-monitor@.timer failures-only
+EOF
+  fi
+}
+
+write_oneshot_timer() {
+  local file="$1" description="$2" schedule="$3"
+  cat > "$file" <<EOF
+# 起動対象のserviceと同じ語幹にして、Unit=を複製せずsystemdの既定対応を使う。
+[Unit]
+Description=$description timer
+
+[Timer]
+OnCalendar=$schedule
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+}
+
+write_monitor_service() {
+  local file="$1" monitor_path="$2" quoted_monitor
+  quoted_monitor="$(quote_unit_argument "$monitor_path")"
+  cat > "$file" <<EOF
+[Unit]
+Description=Check whether %i remains unavailable after the grace period
+
+[Service]
+Type=oneshot
+StateDirectory=systemd-unit-monitor
+
+# 復旧済みの場合はstatus 1で監視unitを失敗させず、通知だけを省略する。
+ExecCondition=$quoted_monitor check %i %S/systemd-unit-monitor/%i.incident.json %S/systemd-unit-monitor/%i.event.json
+ExecStart=/usr/bin/systemctl --user start --no-block discord-notify@%i.service
+EOF
+}
+
+write_monitor_timer() {
+  local file="$1"
+  cat > "$file" <<'EOF'
+[Unit]
+Description=Wait before checking whether %i is still unavailable
+
+[Timer]
+# 既に動くtimerは失敗の繰り返しで再始動されず、猶予時間を最初の異常から測る。
+OnActiveSec=10min
+Unit=unit-failure-monitor@%i.service
+EOF
+}
+
+write_notifier_service() {
+  local file="$1" notifier_path="$2" secrets_file="$3" quoted_notifier
+  quoted_notifier="$(quote_unit_argument "$notifier_path")"
+  cat > "$file" <<EOF
+[Unit]
+Description=Deliver the monitoring event for %i to Discord
+StartLimitIntervalSec=30min
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+StateDirectory=systemd-unit-monitor
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=$secrets_file
+ExecStart=$quoted_notifier %S/systemd-unit-monitor/%i.event.json
+ExecStartPost=/usr/bin/rm -f %S/systemd-unit-monitor/%i.event.json
+Restart=on-failure
+RestartSec=1min
+EOF
+}
+
+resolve_script() {
+  local name="$1" script_directory path
+  script_directory="$(dirname "$(realpath "$0")")"
+  path="$(realpath "$script_directory/$name")"
+  [[ -x "$path" ]] || {
+    echo "user-unit: required script is not executable: $path" >&2
+    exit 1
+  }
+  printf '%s\n' "$path"
+}
+
+validate_secrets_file_path() {
+  local path="$1"
+  validate_one_line "secrets file" "$path"
+  [[ "$path" == /* || "$path" == %h/* ]] || {
+    echo "user-unit: secrets file must be absolute or start with %h/" >&2
+    exit 2
+  }
+}
+
+require_linger() {
+  if [[ "$(loginctl show-user "$USER" -p Linger --value)" != "yes" ]]; then
+    echo "user-unit: lingering is disabled for $USER" >&2
+    echo "user-unit: run 'loginctl enable-linger $USER' after reviewing the account-wide effect" >&2
+    exit 1
+  fi
+}
+
+monitoring_units_installed() {
+  [[ -f "$unit_dir/unit-failure-monitor@.service" \
+    && -f "$unit_dir/unit-failure-monitor@.timer" \
+    && -f "$unit_dir/discord-notify@.service" ]]
+}
+
+monitor_init() {
+  local secrets_file="${USER_UNIT_SECRETS_FILE:-}"
+  local monitor_path notifier_path
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --secrets-file)
+        [[ $# -ge 2 ]] || usage_error
+        secrets_file="$2"
+        shift 2 ;;
+      --help|-h) usage; exit 0 ;;
+      --) shift; break ;;
+      -*) usage_error ;;
+      *) usage_error ;;
+    esac
+  done
+  [[ $# -eq 0 ]] || usage_error
+  [[ -n "$secrets_file" ]] || {
+    echo "user-unit: Discord webhook secrets file is required (set USER_UNIT_SECRETS_FILE or pass --secrets-file)" >&2
+    exit 1
+  }
+  validate_secrets_file_path "$secrets_file"
+  monitor_path="$(resolve_script unit-failure-monitor)"
+  notifier_path="$(resolve_script discord-notify)"
+
+  monitor_stage="$(mktemp -d "${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}/user-unit-monitor-init.XXXXXX")"
+  write_monitor_service "$monitor_stage/unit-failure-monitor@.service" "$monitor_path"
+  write_monitor_timer "$monitor_stage/unit-failure-monitor@.timer"
+  write_notifier_service "$monitor_stage/discord-notify@.service" "$notifier_path" "$secrets_file"
+  check_units "$monitor_stage"/*
+  install_units --source "user-unit monitor-init" "$monitor_stage"/*
+  rm -rf "$monitor_stage"
+  monitor_stage=""
+}
+
+add_unit() {
+  [[ $# -gt 0 ]] || usage_error
+  local kind="$1" name="" description="" working_directory="" exec_start="" schedule=""
+  local monitor=1 monitor_path="" source secrets_file=""
+  local -a files
+  shift
+  [[ "$kind" == "standing" || "$kind" == "oneshot" ]] || usage_error
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --name)
+        [[ $# -ge 2 ]] || usage_error
+        name="$2"
+        shift 2 ;;
+      --description)
+        [[ $# -ge 2 ]] || usage_error
+        description="$2"
+        shift 2 ;;
+      --working-dir)
+        [[ $# -ge 2 ]] || usage_error
+        working_directory="$2"
+        shift 2 ;;
+      --exec)
+        [[ $# -ge 2 ]] || usage_error
+        exec_start="$2"
+        shift 2 ;;
+      --schedule)
+        [[ $# -ge 2 ]] || usage_error
+        schedule="$2"
+        shift 2 ;;
+      --secrets-file)
+        [[ $# -ge 2 ]] || usage_error
+        secrets_file="$2"
+        shift 2 ;;
+      --no-monitor)
+        monitor=0
+        shift ;;
+      --help|-h) usage; exit 0 ;;
+      --) shift; break ;;
+      -*) usage_error ;;
+      *) usage_error ;;
+    esac
+  done
+  [[ $# -eq 0 ]] || usage_error
+
+  validate_one_line "unit name" "$name"
+  validate_stem "$name"
+  validate_one_line "description" "$description"
+  validate_one_line "working directory" "$working_directory"
+  validate_one_line "ExecStart" "$exec_start"
+  if [[ "$kind" == "oneshot" ]]; then
+    validate_one_line "schedule" "$schedule"
+  elif [[ -n "$schedule" ]]; then
+    echo "user-unit: --schedule is only valid for oneshot units" >&2
+    exit 2
+  fi
+  [[ -d "$working_directory" ]] || {
+    echo "user-unit: working directory not found: $working_directory" >&2
+    exit 1
+  }
+  working_directory="$(realpath "$working_directory")"
+  if [[ "$monitor" -eq 1 ]]; then
+    monitor_path="$(resolve_script unit-failure-monitor)"
+  fi
+
+  generated_stage="$(mktemp -d "${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}/user-unit-add.XXXXXX")"
+  if [[ "$kind" == "standing" ]]; then
+    write_standing_unit "$generated_stage/$name.service" "$description" "$working_directory" "$exec_start" "$monitor" "$monitor_path"
+    files=("$generated_stage/$name.service")
+  else
+    write_oneshot_service "$generated_stage/$name.service" "$description" "$working_directory" "$exec_start" "$monitor" "$monitor_path"
+    write_oneshot_timer "$generated_stage/$name.timer" "$description" "$schedule"
+    files=("$generated_stage/$name.service" "$generated_stage/$name.timer")
+  fi
+
+  check_units "${files[@]}"
+  if [[ "$monitor" -eq 1 ]] && ! monitoring_units_installed; then
+    if [[ -n "$secrets_file" ]]; then
+      monitor_init --secrets-file "$secrets_file"
+    else
+      monitor_init
+    fi
+  fi
+  source="user-unit add $kind $name"
+  install_units --source "$source" "${files[@]}"
+  rm -rf "$generated_stage"
+  generated_stage=""
+}
+
+check_units() {
+  [[ $# -gt 0 ]] || usage_error
+  local file
+  for file in "$@"; do
+    validate_file "$file"
+  done
+}
+
+install_units() {
+  local replace=0 source="" file name target existing_source
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --replace) replace=1; shift ;;
+      --source)
+        [[ $# -ge 2 ]] || usage_error
+        source="$2"
+        shift 2 ;;
+      --) shift; break ;;
+      -*) usage_error ;;
+      *) break ;;
+    esac
+  done
+  [[ -n "$source" && $# -gt 0 ]] || usage_error
+  [[ "$source" != *$'\n'* && "$source" != *$'\r'* ]] || {
+    echo "user-unit: source description must be one line" >&2
+    exit 2
+  }
+
+  require_linger
+  check_units "$@"
+  stage="$(mktemp -d "${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is required}/user-unit-install.XXXXXX")"
+  mkdir -p "$unit_dir"
+
+  for file in "$@"; do
+    name="$(basename "$file")"
+    target="$unit_dir/$name"
+    if [[ -e "$target" || -L "$target" ]]; then
+      if [[ "$replace" -ne 1 ]] && ! grep -qxF "$generated_marker" "$target" 2>/dev/null; then
+        echo "user-unit: refusing to replace unmanaged unit: $target" >&2
+        echo "user-unit: pass --replace only after reviewing the existing unit" >&2
+        exit 1
+      fi
+      existing_source="$(sed -n 's/^# Source: //p' "$target" 2>/dev/null | head -n 1)"
+      if [[ "$replace" -ne 1 && -n "$existing_source" && "$existing_source" != "$source" ]]; then
+        echo "user-unit: source mismatch for $name" >&2
+        echo "user-unit: installed='$existing_source' requested='$source'" >&2
+        exit 1
+      fi
+    fi
+    {
+      printf '%s\n' "$generated_marker"
+      printf '# Source: %s\n' "$source"
+      cat "$file"
+    } > "$stage/$name"
+  done
+
+  systemd-analyze --user verify "$stage"/*
+  for file in "$stage"/*; do
+    name="$(basename "$file")"
+    target_temporary="$unit_dir/.${name}.tmp.$$"
+    install -m 0644 "$file" "$target_temporary"
+    mv -fT "$target_temporary" "$unit_dir/$name"
+    target_temporary=""
+  done
+  systemctl --user daemon-reload
+
+  for file in "$stage"/*; do
+    name="$(basename "$file")"
+    if grep -q '^\[Install\][[:space:]]*$' "$file"; then
+      systemctl --user enable --now "$name"
+    fi
+    echo "installed: $name"
+  done
+  rm -rf "$stage"
+  stage=""
+}
+
+uninstall_units() {
+  [[ $# -gt 0 ]] || usage_error
+  local name target
+  for name in "$@"; do
+    validate_name "$name"
+    target="$unit_dir/$name"
+    if [[ -e "$target" || -L "$target" ]]; then
+      if ! grep -qxF "$generated_marker" "$target" 2>/dev/null; then
+        echo "user-unit: refusing to remove unmanaged unit: $target" >&2
+        exit 1
+      fi
+    fi
+  done
+  for name in "$@"; do
+    systemctl --user disable --now "$name" >/dev/null 2>&1 || true
+    clear_monitor_state "$name" all
+    rm -f "$unit_dir/$name"
+    echo "uninstalled: $name"
+  done
+  systemctl --user daemon-reload
+  for name in "$@"; do
+    systemctl --user reset-failed "$name" >/dev/null 2>&1 || true
+  done
+}
+
+restart_units() {
+  [[ $# -gt 0 ]] || usage_error
+  local name
+  systemctl --user daemon-reload
+  for name in "$@"; do
+    validate_name "$name"
+    [[ -f "$unit_dir/$name" ]] || { echo "user-unit: unit is not installed: $name" >&2; exit 1; }
+    systemctl --user reset-failed "$name"
+    systemctl --user restart "$name"
+    clear_monitor_state "$name" pending
+    echo "restarted: $name"
+  done
+}
+
+clear_monitor_state() {
+  local name="$1" scope="$2"
+  systemctl --user stop --no-block \
+    "unit-failure-monitor@${name}.timer" \
+    "unit-failure-monitor@${name}.service" \
+    >/dev/null 2>&1 || true
+  rm -f "$monitor_state_dir/${name}.incident.json"
+  if [[ "$scope" == "all" ]]; then
+    systemctl --user stop --no-block "discord-notify@${name}.service" >/dev/null 2>&1 || true
+    rm -f "$monitor_state_dir/${name}.event.json"
+  fi
+}
+
+doctor() {
+  local file name active enabled source found=0
+  [[ -d "$unit_dir" ]] || { echo "No user unit directory: $unit_dir"; return; }
+  for file in "$unit_dir"/*; do
+    [[ -f "$file" && ! -L "$file" ]] || continue
+    grep -qxF "$generated_marker" "$file" 2>/dev/null || continue
+    found=1
+    name="$(basename "$file")"
+    source="$(sed -n 's/^# Source: //p' "$file" | head -n 1)"
+    active="$(systemctl --user is-active "$name" 2>/dev/null || true)"
+    enabled="$(systemctl --user is-enabled "$name" 2>/dev/null || true)"
+    printf '%s\tactive=%s\tenabled=%s\tsource=%s\n' "$name" "${active:-unknown}" "${enabled:-unknown}" "${source:-unknown}"
+  done
+  [[ "$found" -eq 1 ]] || echo "No units generated by the systemd-unit skill."
+}
+
+[[ $# -gt 0 ]] || usage_error
+command="$1"
+shift
+case "$command" in
+  --help|-h) usage; exit 0 ;;
+  add) add_unit "$@" ;;
+  monitor-init) monitor_init "$@" ;;
+  check) check_units "$@" ;;
+  install) install_units "$@" ;;
+  uninstall) uninstall_units "$@" ;;
+  restart) restart_units "$@" ;;
+  doctor) [[ $# -eq 0 ]] || usage_error; doctor ;;
+  *) usage_error ;;
+esac

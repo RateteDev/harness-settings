@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 # Audit an existing repository against the conventions it is subject to.
 #
-# repo-setup owns the development-base conventions and systemd-unit owns the
-# unit conventions; this script owns neither. It only checks that they hold.
-#
 # Only checks that hold for every repository regardless of its stack live here.
 # Whether a recipe body actually does what its name promises depends on the
 # project, and is left to the agent reading the skill.
@@ -35,10 +32,6 @@ WORKFLOW_DIR=".github/workflows"
 # Toolchain versions have exactly one home. Anything else that names a version
 # is a second authority for the same fact.
 VERSION_FILES=(mise.toml .mise.toml .tool-versions)
-# systemd units have one home per repository, and one pair of recipes that
-# registers and unregisters them.
-SYSTEMD_DIR="infra/systemd"
-SERVICE_RECIPES=(service-install service-uninstall)
 
 usage() {
   printf 'Usage: audit.sh [--repo <path>] [--verbose]\n' >&2
@@ -356,149 +349,6 @@ if compgen -G "${REPO}/${WORKFLOW_DIR}/*.y*ml" > /dev/null; then
   done
 else
   report FAIL remote-ci "no workflow under ${WORKFLOW_DIR}"
-fi
-
-# systemd units.
-#
-# Scanned repository-wide rather than under SYSTEMD_DIR, because a unit filed
-# somewhere else is exactly the case worth catching: an audit that only looks
-# inside the correct directory is blind to every repository that never found it.
-#
-# The conventions themselves are the systemd-unit skill's; this only checks that
-# a unit sitting in the tree obeys them.
-mapfile -d '' -t units < <(
-  find "$REPO" -type f \( -name '*.service' -o -name '*.timer' \) \
-    -not -path '*/node_modules/*' -not -path '*/.git/*' -printf '%P\0'
-)
-
-unit_count=0
-for unit in "${units[@]}"; do
-  path="${REPO}/${unit}"
-
-  # A unit that is a template is not a unit. It lives wherever its skill keeps
-  # its templates, and its placeholders are unresolvable by construction, so
-  # every check below would report a defect that is the file working correctly.
-  case "$unit" in
-    */templates/*|templates/*|*/fixtures/*|fixtures/*) continue ;;
-  esac
-  grep -q '{[a-z-]*}' "$path" && continue
-
-  unit_count=$((unit_count + 1))
-
-  # Directives only. A comment explaining why a directive is absent must not
-  # read as the directive being present.
-  body="$(grep -vE '^[[:space:]]*[#;]' "$path" || true)"
-
-  # System units answer to different rules: network-online.target exists for
-  # them, and %h resolves against whoever User= names. Only the checks that hold
-  # in both scopes are applied to them.
-  scope="user"
-  if grep -qE '^[[:space:]]*User[[:space:]]*=' <<<"$body" \
-    || grep -qE '^[[:space:]]*WantedBy[[:space:]]*=[[:space:]]*multi-user\.target' <<<"$body"; then
-    scope="system"
-  fi
-
-  # The unit is under version control.
-  #
-  # A unit the repository does not track is not backed up, not reviewed and not
-  # carried by a clone, which defeats the reason for keeping it in a repository
-  # at all. Ignored and merely-unadded are the same outcome, so both fail.
-  if git -C "$REPO" ls-files --error-unmatch -- "$unit" >/dev/null 2>&1; then
-    report PASS "systemd-tracked-${unit}" "tracked"
-  elif git -C "$REPO" check-ignore -q -- "$unit"; then
-    report FAIL "systemd-tracked-${unit}" "git-ignores this unit, so it is absent from every clone and from every backup"
-  else
-    report FAIL "systemd-tracked-${unit}" "untracked, so it is absent from every clone and from every backup — git add it"
-  fi
-
-  # Placement.
-  if [[ "$unit" == "${SYSTEMD_DIR}/"* ]]; then
-    report PASS "systemd-placement-${unit}" "under ${SYSTEMD_DIR}"
-  else
-    report FAIL "systemd-placement-${unit}" "a unit outside ${SYSTEMD_DIR}/ is one nobody thinks to look for — and the repository that files it elsewhere is the one that never adopted the convention"
-  fi
-
-  # Home paths are written with %h, never spelled out.
-  #
-  # A literal home path cannot be told apart from a stale one, and it keeps
-  # resolving after a copy into system scope, where it then runs as root
-  # against a user's files instead of failing.
-  if grep -qE "=[[:space:]]*-?/home/|:/home/" <<<"$body"; then
-    report FAIL "systemd-home-specifier-${unit}" "a literal /home/ path survives a copy into system scope and then runs as root against a user's files — %h fails instead"
-  else
-    report PASS "systemd-home-specifier-${unit}" "no literal home path"
-  fi
-
-  # network-online.target does not exist in the user scope.
-  if [[ "$scope" == "user" ]] && grep -q "network-online.target" <<<"$body"; then
-    report FAIL "systemd-network-target-${unit}" "the user manager has no network-online.target, so this line is ignored while reading as an ordering guarantee — Restart= is what covers a slow network"
-  else
-    report PASS "systemd-network-target-${unit}" "no unresolvable target"
-  fi
-
-  [[ "$unit" == *.service ]] || continue
-
-  # Type= is declared, and is not the default that hides exec failures.
-  declared_type="$(sed -n 's/^[[:space:]]*Type[[:space:]]*=[[:space:]]*\([^[:space:]]*\).*/\1/p' <<<"$body" | tail -1)"
-  case "$declared_type" in
-    "")
-      report FAIL "systemd-type-${unit}" "without Type=, the default 'simple' calls a start successful as soon as the fork succeeds, so a missing executable never surfaces" ;;
-    simple)
-      report FAIL "systemd-type-${unit}" "Type=simple reports success before execve(), so a missing executable never reaches 'systemctl start'" ;;
-    *)
-      report PASS "systemd-type-${unit}" "Type=${declared_type}" ;;
-  esac
-
-  # The executable named by ExecStart plausibly exists.
-  #
-  # Last-wins: an empty ExecStart= resets the list, so anything before it is
-  # discarded. The leading -@+!: prefixes are systemd's, not part of the path.
-  #
-  # This is the one check that reads the host rather than the repository, so it
-  # can only warn: the same commit is correct on a machine that has the toolchain
-  # installed and not on one that does not.
-  exec_line="$(sed -n 's/^[[:space:]]*ExecStart[[:space:]]*=[[:space:]]*//p' <<<"$body" | tail -1)"
-  exec_path="${exec_line%%[[:space:]]*}"
-  exec_path="${exec_path#"${exec_path%%[!-@+!:]*}"}"
-  resolved="${exec_path//\%h/$HOME}"
-  if [[ -z "$exec_line" ]]; then
-    report FAIL "systemd-execstart-${unit}" "no ExecStart=, so the unit starts nothing"
-  elif [[ "$resolved" == *%* ]]; then
-    report PASS "systemd-execstart-${unit}" "specifier-dependent path, not resolvable outside a running instance"
-  elif [[ -x "$resolved" ]]; then
-    report PASS "systemd-execstart-${unit}" "executable resolves on this host"
-  else
-    report WARN "systemd-execstart-${unit}" "ExecStart does not resolve to an executable on this host: ${exec_path} — Type=exec surfaces this at start time, but only where the toolchain is installed"
-  fi
-
-  # A long-running unit that can fail forever must be able to reach 'failed'.
-  case "$declared_type" in
-    exec|simple|notify|notify-reload)
-      limit="$(sed -n 's/^[[:space:]]*StartLimitIntervalSec[[:space:]]*=[[:space:]]*\([^[:space:]]*\).*/\1/p' <<<"$body" | tail -1)"
-      case "$limit" in
-        "")
-          report WARN "systemd-start-limit-${unit}" "with the 10s default a unit restarting every few seconds never fills the window, so a permanent failure retries unnoticed and OnFailure= never runs" ;;
-        0|0s|infinity)
-          report FAIL "systemd-start-limit-${unit}" "StartLimitIntervalSec=${limit} disables rate limiting outright, so the unit can never reach 'failed' and OnFailure= can never run" ;;
-        *)
-          report PASS "systemd-start-limit-${unit}" "start limit is finite (${limit})" ;;
-      esac ;;
-  esac
-done
-
-# A unit in the tree is only usable if the repository can register it.
-if [[ "$unit_count" -gt 0 ]]; then
-  if [[ -f "${REPO}/justfile" ]]; then
-    for recipe in "${SERVICE_RECIPES[@]}"; do
-      if grep -qE "^${recipe}( [^:]*)?:" "${REPO}/justfile"; then
-        report PASS "systemd-recipe-${recipe}" "present"
-      else
-        report FAIL "systemd-recipe-${recipe}" "without '${recipe}', registering the unit is an undocumented manual step that only its author can repeat"
-      fi
-    done
-  fi
-else
-  report PASS systemd-units "no units in the tree"
 fi
 
 printf '\n%d FAIL, %d WARN\n' "$fail_count" "$warn_count"
