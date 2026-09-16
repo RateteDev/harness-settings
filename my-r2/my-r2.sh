@@ -13,7 +13,9 @@ usage() {
 my-r2 - A thin AWS CLI wrapper for Cloudflare R2. Write R2 keys without the bucket name.
 
 Commands:
-  put <local> <key>                 Upload a file
+  put <local> <key> [--download]    Upload a file. Without --download the shared link opens in
+                                    the browser; with it the link saves the file under the local
+                                    file's name
   get <key> <local>                 Download a file
   ls [prefix]                       List objects
   sync <local-dir> <key>            Sync a local directory to R2
@@ -23,6 +25,7 @@ Commands:
 
 Examples:
   my-r2 put ./photo.png docs/photo.png
+  my-r2 put ./report.md docs/report.md --download
   my-r2 get docs/photo.png ./photo.png
   my-r2 ls docs/
   my-r2 sync ./assets docs/assets
@@ -59,6 +62,16 @@ configure_r2() {
   BUCKET="$R2_BUCKET"
 }
 
+# リンクをブラウザで開かせず保存させるための Content-Disposition を作る。
+# 非ASCII名はRFC 5987の filename* (UTF-8) で渡し、対応していない相手向けにASCII名を併記する。
+attachment_content_disposition() {
+  local filename encoded fallback
+  filename="$(basename -- "$1")"
+  encoded="$(printf '%s' "$filename" | od -An -v -tx1 | tr -d ' \n' | sed 's/../%&/g')"
+  fallback="$(printf '%s' "$filename" | LC_ALL=C tr -c '\040-\176' '_' | sed 's/["\\]/_/g')"
+  printf "attachment; filename=\"%s\"; filename*=UTF-8''%s" "$fallback" "$encoded"
+}
+
 main() {
   local verb="${1:-}"
   shift 1 || true
@@ -69,7 +82,11 @@ main() {
       return
       ;;
     put)
-      [[ $# -eq 2 ]] || { echo "usage: my-r2 put <local> <key>" >&2; exit 1; }
+      [[ $# -eq 2 || $# -eq 3 ]] || { echo "usage: my-r2 put <local> <key> [--download]" >&2; exit 1; }
+      if [[ $# -eq 3 && "${3}" != "--download" ]]; then
+        echo "unknown option: ${3} (supported: --download)" >&2
+        exit 1
+      fi
       ;;
     get)
       [[ $# -eq 2 ]] || { echo "usage: my-r2 get <key> <local>" >&2; exit 1; }
@@ -102,7 +119,11 @@ main() {
 
   case "$verb" in
     put)
-      aws s3 cp "$1" "s3://${BUCKET}/$2" --endpoint-url "$ENDPOINT_URL"
+      local -a extra=()
+      if [[ "${3:-}" == "--download" ]]; then
+        extra=(--content-disposition "$(attachment_content_disposition "$1")")
+      fi
+      aws s3 cp "$1" "s3://${BUCKET}/$2" --endpoint-url "$ENDPOINT_URL" ${extra[@]+"${extra[@]}"}
       ;;
     get)
       aws s3 cp "s3://${BUCKET}/$1" "$2" --endpoint-url "$ENDPOINT_URL"
