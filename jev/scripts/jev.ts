@@ -251,7 +251,7 @@ async function main() {
   const output = options.limit ? result.scored.slice(0, options.limit) : result.scored
   for (const item of output) console.log(`${item.score}\t${item.candidate}`)
   console.error(
-    `jev: ${candidates.length} candidates, ${batches.length} request(s), model ${result.model}, ${result.inputTokens} input tokens`,
+    `jev: ${candidates.length} candidates, ${batches.length} request(s) in batches of up to ${SETTINGS.batchSize}, model ${result.model}, ${result.inputTokens} input tokens`,
   )
 }
 
