@@ -1,14 +1,7 @@
 <!doctype html>
 <!--
 試行錯誤アーカイブ（trial-archive）
-経過の本文はすべて末尾の <script type="application/json" id="archive-data"> にある。
-画像などのバイナリは assets[ID].data（base64）に入っているので、読むときは assets を除いて stages と entries だけ見ればよい。
-    python3 - このファイル.html <<'PY'
-    import json, sys
-    s = open(sys.argv[1], encoding='utf-8').read()
-    d = json.loads(s.rsplit('archive-data">', 1)[1].split('</script>', 1)[0])
-    d.pop('assets', None); print(json.dumps(d, ensure_ascii=False, indent=1))
-    PY
+本文は id="archive-body" のJSONにある。画像・図のbase64は id="archive-assets" に分けてあるので、本文を読むときは archive-body だけを読む。
 -->
 <html lang="ja" data-theme="snow" class="is-loading"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>見本：CLIのエラーメッセージの文言</title>
 <script>
@@ -176,7 +169,76 @@
   <div id="stages"></div>
 </main>
 <footer class="site-footer">試行錯誤アーカイブ · 本文と画像はこのHTML内のJSONに埋め込み</footer>
-<script type="application/json" id="archive-data">{"title": "見本：CLIのエラーメッセージの文言", "summary": "架空のメモCLIで、設定ファイルが見つからないときのエラー文を2段階・5案で詰めた記録。各案は出力例をそのままコピーできる。", "created": "2026-09-28", "notes": ["この見本は架空の題材。汎用の形として、画像を使わずに文章とコードだけで案を並べている。"], "stages": [{"id": "draft", "title": "初稿の3案", "entryIds": ["a", "b", "c"], "description": "Aは短いが、次に何をすればよいか分からない。Bで探した場所までは分かる。Cの「次の行動まで書く」方向で進める。"}, {"id": "amount", "title": "案内の量", "entryIds": ["d", "e"], "description": "Dは親切だが、エラーのたびに読む量が増える。案内を1つに絞り、終了コードも決めたEを採用した。"}], "entries": [{"id": "a", "title": "A-事実だけ", "body": "何が起きたかだけを1行で伝える。", "code": "Error: config not found"}, {"id": "b", "title": "B-原因と場所", "body": "探した場所を添えて、どこを見ればよいか分かるようにする。", "code": "error: 設定ファイルが見つかりません\n  探した場所: ~/.config/memo/config.toml"}, {"id": "c", "title": "C-次の行動まで", "body": "Bに、次に打つコマンドを1つ添える。", "code": "error: 設定ファイルが見つかりません\n  探した場所: ~/.config/memo/config.toml\n  memo init で作成できます"}, {"id": "d", "title": "D-案内を2つ", "basedOn": ["c"], "body": "作成と、別の場所を指定する方法の2つを並べる。", "code": "error: 設定ファイルが見つかりません\n  探した場所: ~/.config/memo/config.toml\n  memo init で作成できます\n  別の場所を使うときは --config <path> を指定します"}, {"id": "e", "title": "E-案内を1つに絞る", "basedOn": ["c"], "adopted": true, "body": "案内をいちばん使う1つに絞り、終了コードを2に決めた。", "code": "error: 設定ファイルが見つかりません\n  探した場所: ~/.config/memo/config.toml\n  memo init で作成できます\n\n$ echo $?\n2"}]}</script>
+<script type="application/json" id="archive-body">
+{
+ "title": "見本：CLIのエラーメッセージの文言",
+ "summary": "架空のメモCLIで、設定ファイルが見つからないときのエラー文を2段階・5案で詰めた記録。各案は出力例をそのままコピーできる。",
+ "created": "2026-09-28",
+ "notes": [
+  "この見本は架空の題材。汎用の形として、画像を使わずに文章とコードだけで案を並べている。"
+ ],
+ "stages": [
+  {
+   "id": "draft",
+   "title": "初稿の3案",
+   "entryIds": [
+    "a",
+    "b",
+    "c"
+   ],
+   "description": "Aは短いが、次に何をすればよいか分からない。Bで探した場所までは分かる。Cの「次の行動まで書く」方向で進める。"
+  },
+  {
+   "id": "amount",
+   "title": "案内の量",
+   "entryIds": [
+    "d",
+    "e"
+   ],
+   "description": "Dは親切だが、エラーのたびに読む量が増える。案内を1つに絞り、終了コードも決めたEを採用した。"
+  }
+ ],
+ "entries": [
+  {
+   "id": "a",
+   "title": "A-事実だけ",
+   "body": "何が起きたかだけを1行で伝える。",
+   "code": "Error: config not found"
+  },
+  {
+   "id": "b",
+   "title": "B-原因と場所",
+   "body": "探した場所を添えて、どこを見ればよいか分かるようにする。",
+   "code": "error: 設定ファイルが見つかりません\n  探した場所: ~/.config/memo/config.toml"
+  },
+  {
+   "id": "c",
+   "title": "C-次の行動まで",
+   "body": "Bに、次に打つコマンドを1つ添える。",
+   "code": "error: 設定ファイルが見つかりません\n  探した場所: ~/.config/memo/config.toml\n  memo init で作成できます"
+  },
+  {
+   "id": "d",
+   "title": "D-案内を2つ",
+   "basedOn": [
+    "c"
+   ],
+   "body": "作成と、別の場所を指定する方法の2つを並べる。",
+   "code": "error: 設定ファイルが見つかりません\n  探した場所: ~/.config/memo/config.toml\n  memo init で作成できます\n  別の場所を使うときは --config <path> を指定します"
+  },
+  {
+   "id": "e",
+   "title": "E-案内を1つに絞る",
+   "basedOn": [
+    "c"
+   ],
+   "adopted": true,
+   "body": "案内をいちばん使う1つに絞り、終了コードを2に決めた。",
+   "code": "error: 設定ファイルが見つかりません\n  探した場所: ~/.config/memo/config.toml\n  memo init で作成できます\n\n$ echo $?\n2"
+  }
+ ]
+}
+</script>
 <script>
 (() => {
   const UNIT = '案', GRID_CLASS = 'grid';
@@ -189,9 +251,10 @@
       codeBlock(e.code)));
   }
 
-  const archive = JSON.parse(document.getElementById('archive-data').textContent);
-  const entries = new Map(archive.entries.map(e => [e.id, e]));
-  const stages = archive.stages.map((s, i) => ({ ...s, n: i + 1 }));
+  const body = JSON.parse(document.getElementById('archive-body').textContent);
+  const assets = JSON.parse(document.getElementById('archive-assets')?.textContent ?? '{}');
+  const entries = new Map(body.entries.map(e => [e.id, e]));
+  const stages = body.stages.map((s, i) => ({ ...s, n: i + 1 }));
   const pad = n => String(n).padStart(2, '0');
   const el = (tag, attrs = {}, ...children) => {
     const node = document.createElement(tag);
@@ -233,10 +296,10 @@
     el('summary', { class: 'stage-head' }, el('span', { class: 'fold', 'aria-hidden': 'true' }), ...head), el('div', { class: 'stage-body' }, ...body));
   const finding = (label, text) => el('p', { class: 'finding' }, el('span', { class: 'finding-label muted' }, label), text);
 
-  document.getElementById('title').textContent = archive.title;
-  document.getElementById('lead').append(...digits(archive.summary));
-  document.getElementById('created').append('作成日：', ...digits(archive.created));
-  if (archive.notes?.length) document.getElementById('notes').append(el('span', { class: 'finding-label muted' }, '注記'), ...archive.notes.map(n => el('p', {}, n)));
+  document.getElementById('title').textContent = body.title;
+  document.getElementById('lead').append(...digits(body.summary));
+  document.getElementById('created').append('作成日：', ...digits(body.created));
+  if (body.notes?.length) document.getElementById('notes').append(el('span', { class: 'finding-label muted' }, '注記'), ...body.notes.map(n => el('p', {}, n)));
   else document.getElementById('notes').remove();
   for (const s of stages) {
     document.getElementById('toc').append(el('li', {}, el('a', { class: 'toc-link', href: `#${s.id}` },
