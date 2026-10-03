@@ -2,6 +2,8 @@
 name: ER図規約
 description: |
   mermaid erDiagram を人が読むためのドキュメントとして手書きで作成・更新する際の規約スキル。
+metadata:
+  user-review: false
 ---
 
 # ER図規約

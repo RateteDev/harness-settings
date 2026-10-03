@@ -2,6 +2,8 @@
 name: 記事風HTML
 description: |
   MD/MDXを読みやすい記事styleの自己完結HTMLへ変換し、Linux host上で表示を検証する。
+metadata:
+  user-review: false
 ---
 
 # article-preview

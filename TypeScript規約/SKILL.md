@@ -2,6 +2,8 @@
 name: TypeScript規約
 description: |
   TypeScriptのコードを書くとき、TSプロジェクトを立ち上げるときに従う規約。ランタイム、lint/format、ロガー、パッケージ初期化を定める。
+metadata:
+  user-review: false
 ---
 
 # TypeScript

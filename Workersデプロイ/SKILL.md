@@ -2,6 +2,8 @@
 name: Workersデプロイ
 description: |
   Cloudflare Workersへ安全に公開するためのデプロイスキル。Workers BuildsでVersionだけをアップロードし、Preview URLを検証してから、確認済みVersionをProductionへPromoteする構成と手順を扱う。Static Assetsを使うフロントエンドとWorker APIの両方を対象とする。
+metadata:
+  user-review: false
 ---
 
 # Cloudflare Workersデプロイガイド

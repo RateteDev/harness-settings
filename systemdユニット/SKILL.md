@@ -2,6 +2,8 @@
 name: systemdユニット
 description: |
   個人ホストの常駐サーバーや定期実行をsystemd user unitとして生成・登録・監視するときに従う規約。unitの書式、ライフサイクル管理、継続障害の監視、Discord通知への接続を扱う。
+metadata:
+  user-review: false
 ---
 
 # systemdユニット

@@ -2,6 +2,8 @@
 name: ADR規約
 description: |
   重要な設計判断をADRとして記録するときに従う規約。作成の契機、成立条件、置き場、命名、章構成、書き方、監査方法を定める。
+metadata:
+  user-review: false
 ---
 
 # Architecture Decision Record

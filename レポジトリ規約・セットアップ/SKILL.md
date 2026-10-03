@@ -2,6 +2,8 @@
 name: レポジトリ規約・セットアップ
 description: |
   リポジトリの開発基盤を構築・監査するスキル。ディレクトリ骨格・justfile・CI・Gitフックの規約、雛形、機械検査とエージェント検査を持つ。
+metadata:
+  user-review: false
 ---
 
 # リポジトリの開発基盤

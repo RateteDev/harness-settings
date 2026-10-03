@@ -1,6 +1,8 @@
 ---
 name: エージェントアーカイブ
 description: agent-archiveでエージェント会話をアーカイブまたは抽出する際に使う。
+metadata:
+  user-review: false
 ---
 
 # agent-archive

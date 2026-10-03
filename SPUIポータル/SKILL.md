@@ -2,6 +2,8 @@
 name: SPUIポータル
 description: |
   starting-point-uiの公式Sidebar例を起点に、左サイドバーとダミー本文を持つ白黒モダンな試作ポータルの単体HTMLを作るときに従う差分と規則。
+metadata:
+  user-review: false
 ---
 
 # SPUIポータル
