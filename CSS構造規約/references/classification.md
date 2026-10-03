@@ -47,7 +47,8 @@ Designを削除して起きてはいけないもの:
 
 ## 3. 迷ったときの既定値
 
-**Structure / Designの判定に迷ったらStructureに置きます。**
+**Structure / Designの判定に迷ったらStructureに置きます。
+**
 
 理由は、Designが「削除しても成立する」という強い契約を持つためです。
 
@@ -83,7 +84,8 @@ Designを削除して起きてはいけないもの:
 - UI成立に必要なborder geometry
 - 位置を機能的に変える `transform`
 
-ただし、これは絶対的なproperty whitelistではありません。最終判断は削除テストで行います。
+ただし、これは絶対的なproperty whitelistではありません。
+最終判断は削除テストで行います。
 
 ## 5. Designの典型例
 
@@ -176,7 +178,8 @@ Global Structureで次を強制することを推奨します。
 
 これにより、明示した `width` / `height` にpaddingやborderを含めやすくなり、外側への寸法波及を抑えられます。
 
-ただし `border-box` でもborderを太くすると内部content領域は狭くなります。折り返し等への影響が消えるわけではありません。
+ただし `border-box` でもborderを太くすると内部content領域は狭くなります。
+折り返し等への影響が消えるわけではありません。
 
 そのため `border-width` は依然としてStructure寄りです。
 

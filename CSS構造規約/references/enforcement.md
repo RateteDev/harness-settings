@@ -22,7 +22,7 @@ Lintで判定できるものは、可能な限りLintへ移します。
 
 ## 2. Enforced Rulesとして推奨するもの
 
-### 2.1 許可Layerを固定する
+### 2.1許可Layerを固定する
 
 First-party CSSで許可するRoleは次だけです。
 
@@ -101,7 +101,8 @@ color: var(--color-text);
 background: var(--color-surface);
 ```
 
-色はshorthandやgradient、shadow内部にも現れるため、単純な `color` propertyだけの検査では不十分です。値ASTまで解析してください。
+色はshorthandやgradient、shadow内部にも現れるため、単純な `color` propertyだけの検査では不十分です。
+値ASTまで解析してください。
 
 `transparent`、`currentColor` などを許可するかはリポジトリ側で明示的に決めます。
 
@@ -124,9 +125,10 @@ NG:
 
 これでは生色禁止を迂回できます。
 
-Custom Property全般をLocalで禁止するか、Component API用途を許可するかはリポジトリ側で決められます。ただしテーマ依存値のLocal定義は許可しません。
+Custom Property全般をLocalで禁止するか、Component API用途を許可するかはリポジトリ側で決められます。
+ただしテーマ依存値のLocal定義は許可しません。
 
-### 2.6 未定義Token参照を禁止する
+### 2.6未定義Token参照を禁止する
 
 可能なら、Localから参照するテーマTokenがGlobal Tokensに存在することを検査します。
 
@@ -167,7 +169,7 @@ mountain theme : --color-text, --color-bg, --shadow-card
 
 詳細度を不必要に上げ、所有境界を曖昧にするため禁止します。
 
-### 2.9 過度に深いselectorを制限する
+### 2.9過度に深いselectorを制限する
 
 例えば最大複合数を決めます。
 
@@ -181,7 +183,7 @@ NG例:
 
 厳密な上限値はリポジトリに合わせますが、DOM階層への強い依存はLintで抑制できます。
 
-### 2.10 ファイルScope違反
+### 2.10ファイルScope違反
 
 ディレクトリからScopeを判定できる構成なら、次を検査できます。
 
@@ -244,7 +246,7 @@ UIがページ固有か、独立Componentとして所有すべきかは、再利
 
 「この値がテーマによって実際に変わるか」は、CSSだけでは確定できないことがあります。
 
-### 4.4 状態責務
+### 4.4状態責務
 
 `opacity: 0` が単なるフェードなのか、機能上の非表示なのかは、HTML / JSを含めて確認する必要があります。
 

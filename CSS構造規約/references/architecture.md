@@ -26,7 +26,8 @@ Scope
 - `box-sizing: border-box`
 - `html`, `body` などアプリケーション全体に必要な基礎Structure
 
-Globalは便利な退避場所ではありません。Localで解決できる問題をGlobalへ移してはいけません。
+Globalは便利な退避場所ではありません。
+Localで解決できる問題をGlobalへ移してはいけません。
 
 ### Local / Page
 
@@ -68,7 +69,8 @@ components/
 
 Componentは複数ページで再利用できる単位です。
 
-「現在1ページでしか使っていない」ことだけでPage所有にする必要はありません。UIとしてページから独立して意味を持つならComponentです。
+「現在1ページでしか使っていない」ことだけでPage所有にする必要はありません。
+UIとしてページから独立して意味を持つならComponentです。
 
 ## 2. PageとComponentは親子のScopeではない
 
@@ -91,7 +93,8 @@ Article Page
 └─ Toolbar           # toolbar.cssはToolbarが所有
 ```
 
-ページはComponentを配置します。Component内部のCSS契約はComponent自身が所有します。
+ページはComponentを配置します。
+Component内部のCSS契約はComponent自身が所有します。
 
 ## 3. Page / Componentの判断基準
 
@@ -110,7 +113,8 @@ Article Page
 - 別ページや別領域へ持ち出しても意味がある
 - 自身のmarkup / behavior / styleを一まとまりとして所有できる
 
-再利用回数そのものは判定基準ではありません。再利用可能な所有単位かどうかで判断します。
+再利用回数そのものは判定基準ではありません。
+再利用可能な所有単位かどうかで判断します。
 
 ## 4. ディレクトリ構造
 
@@ -230,15 +234,18 @@ Button.module.css
 
 この順序を各ファイルで再定義しません。
 
-First-party CSSは原則として、これらのいずれかのLayer内へ入れます。Layer外の通常宣言はlayer内の通常宣言よりカスケード上強くなるため、意図せず規約を迂回する経路になります。
+First-party CSSは原則として、これらのいずれかのLayer内へ入れます。
+Layer外の通常宣言はlayer内の通常宣言よりカスケード上強くなるため、意図せず規約を迂回する経路になります。
 
-外部ライブラリを導入するリポジトリでは、そのCSSをどのように扱うかをリポジトリ側で別途決めてください。first-partyのRoleを増やして外部CSSを吸収しないでください。
+外部ライブラリを導入するリポジトリでは、そのCSSをどのように扱うかをリポジトリ側で別途決めてください。
+first-partyのRoleを増やして外部CSSを吸収しないでください。
 
 ## 7. Tokensは「テーマとLocal CSSのインターフェース」
 
 Tokensは値の共通化機構ではありません。
 
-この規約では、**色は常にGlobal Token**です。色以外の値は、テーマによって実際に切り替わる場合だけTokenにします。
+この規約では、**色は常にGlobal Token**です。
+色以外の値は、テーマによって実際に切り替わる場合だけTokenにします。
 
 次のように考えます。
 
@@ -288,7 +295,8 @@ Token化の条件は、色とそれ以外で異なります。
 
 ### 色
 
-色はテーマ差分の有無にかかわらずGlobal Tokenを通します。これにより、Local CSSでサイトの許可色以外を使用できないよう静的検査できます。
+色はテーマ差分の有無にかかわらずGlobal Tokenを通します。
+これにより、Local CSSでサイトの許可色以外を使用できないよう静的検査できます。
 
 ### 色以外
 
@@ -352,6 +360,7 @@ CSS Custom Propertyを使っただけでTokenになるわけではありませ�
 
 テーマ値としてGlobalの `tokens` layerに定義したCustom Propertyが、この規約上のTokenです。
 
-Local Custom Propertyを使う必要がある場合は、それがComponent APIやCSS計算上の明確な目的を持つか確認してください。単発の定数へ名前を付けるためだけに導入しないでください。
+Local Custom Propertyを使う必要がある場合は、それがComponent APIやCSS計算上の明確な目的を持つか確認してください。
+単発の定数へ名前を付けるためだけに導入しないでください。
 
 Local Custom Propertyにテーマ依存の生値を隠して、Token規則を迂回してはいけません。

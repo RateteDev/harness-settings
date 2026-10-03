@@ -5,7 +5,8 @@ description: agent-archiveでエージェント会話をアーカイブまたは
 
 # agent-archive
 
-`agent-archive`は信頼済みの利用者向けCLIとして扱う。実装、ローカルDB、内部形式を調査・検証・変更しない。
+`agent-archive`は信頼済みの利用者向けCLIとして扱う。
+実装、ローカルDB、内部形式を調査・検証・変更しない。
 
 最初に次を実行して、利用可能な操作と使い方を確認する。
 

@@ -5,14 +5,16 @@ description: リポジトリをOSSとして公開するときに使う。public�
 
 # OSS公開
 
-リポジトリをOSSとして公開する作業である。次の段階をこの順で行う。
+リポジトリをOSSとして公開する作業である。
+次の段階をこの順で行う。
 
 1. 公開前チェック — [references/preflight.md](references/preflight.md)
 2. README — [references/readme.md](references/readme.md)
 3. 公開 — [references/publish.md](references/publish.md)
 4. リリース — [references/release.md](references/release.md)
 
-READMEとリリースノートの仕上がりは [references/output-example.md](references/output-example.md) の見本に合わせる。書き終えたら見本と並べて点検する。
+READMEとリリースノートの仕上がりは [references/output-example.md](references/output-example.md) の見本に合わせる。
+書き終えたら見本と並べて点検する。
 
 本スキルが定義する段階は、公開前チェック・README・公開・リリースである。
 定義の無い作業をユーザーが求めた場合は、作業に入る前に本スキルへ規則を追加する。
