@@ -1,5 +1,5 @@
 ---
-name: 利用状況確認
+name: ハーネス利用量確認
 description: Claude Code、Codex/ChatGPTまたはOpenCodeの現在のクォータ、リセット時刻、トークン使用量、推定コストを、認証情報を晒さずに確認する。
 ---
 

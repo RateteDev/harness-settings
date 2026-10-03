@@ -1,10 +1,10 @@
 ---
-name: ER図
+name: ER図規約
 description: |
   mermaid erDiagram を人が読むためのドキュメントとして手書きで作成・更新する際の規約スキル。
 ---
 
-# ER図
+# ER図規約
 
 ## 論理型表記
 

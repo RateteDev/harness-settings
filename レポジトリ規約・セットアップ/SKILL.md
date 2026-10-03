@@ -1,5 +1,5 @@
 ---
-name: リポジトリ基盤
+name: レポジトリ規約・セットアップ
 description: |
   リポジトリの開発基盤を構築・監査するスキル。ディレクトリ骨格・justfile・CI・Gitフックの規約、雛形、機械検査とエージェント検査を持つ。
 ---
@@ -25,7 +25,7 @@ description: |
 | `mise.toml` | ツールチェーン版数。ここが唯一の宣言で、CIもこれを読む |
 | `.githooks/` | commit-msg / pre-commit / pre-push |
 | `.gitignore` | 一般的な除外設定 |
-| `AGENTS.md` | エージェント指示書。雛形と書き方はエージェント指示書規約スキルの`templates/AGENTS.md`が持つ |
+| `AGENTS.md` | エージェント指示書。雛形と書き方はAGENTS.md規約スキルの`templates/AGENTS.md`が持つ |
 
 ディレクトリ骨格は雛形に含めないため、配置とあわせて作成する。
 

@@ -1,5 +1,5 @@
 ---
-name: エージェント指示書規約
+name: AGENTS.md規約
 description: リポジトリの`AGENTS.md`とマシン固有の`AGENTS.md.local`の書き方規約。指示書の作成・編集や、環境の変化に伴う常時指示の修正で使う。
 ---
 
