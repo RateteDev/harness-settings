@@ -6,14 +6,20 @@ metadata:
   user-review: false
 ---
 
-# CSS Structure
+# CSS構造規約
 
-このスキルは、CSSを「どこに属するか」と「何を担うか」の2軸で整理するための規約です。
+## このスキルの目的
 
-目的は、CSSを細かく分類すること自体ではありません。
-人間とエージェントの双方が、変更先と責務を迷わず判断でき、誤った配置を静的検査で止められる状態を作ることです。
+CSSを「どこに属するか」と「何を担うか」の2軸で整理し、人間とエージェントの双方が変更先と責務を迷わず判断できる状態を作ります。
+細かく分類すること自体が目的ではありません。
+誤った配置を静的検査で止められる状態にすることが目的です。
 
-## 基本モデル
+## 進め方
+
+CSSを触る際は、次の点に注意してください。
+上から順に確認してください。
+
+### 基本モデル
 
 CSSは次の2軸で考えます。
 
@@ -30,7 +36,7 @@ Role
 └─ Design
 ```
 
-### Scope
+**Scope**
 
 - **Global**: アプリケーション全体で共有されるCSS。
 - **Local / Page**: 特定ページだけが所有するCSS。
@@ -42,7 +48,7 @@ PageとComponentはScope上の親子関係ではありません。
 どちらもLocalです。
 違いは主に所有者と再利用性です。
 
-### Role
+**Role**
 
 - **Tokens**: サイト全体で許可する色と、テーマによって切り替わるその他の値を定義する。
 - **Structure**: UIの構造・配置・可読性・操作性を成立させる。
@@ -56,7 +62,7 @@ RoleはCSS標準の `@layer` で表現します。
 
 この順序はアプリケーション全体で一度だけ宣言し、変更しません。
 
-## 最重要契約: Designは外しても成立する
+### Structure / Designの契約
 
 `design` layerを丸ごと削除しても、ページは情報を読めて、主要な操作ができ、配置上の破綻が起きない状態を維持してください。
 
@@ -85,7 +91,7 @@ Designは「消しても成立する」という契約を負うため、境界�
 
 詳細な判断基準は [references/classification.md](references/classification.md) を読んでください。
 
-## Tokensの定義
+### Tokensの決め方
 
 Tokensは「共通値」ではありません。
 
@@ -117,7 +123,7 @@ Tokensは「共通値」ではありません。
 
 Tokensの詳細とテーマ例は [references/architecture.md](references/architecture.md) と [references/examples.md](references/examples.md) を読んでください。
 
-## ファイル所有の原則
+### ファイルの持ち方
 
 Local CSSはPageまたはComponentの所有者ごとに1ファイルを基本とします。
 
@@ -154,7 +160,7 @@ styles/
 
 詳しくは [references/architecture.md](references/architecture.md) を読んでください。
 
-## エージェントがCSSを変更するときの手順
+### 変更手順
 
 1. 変更対象の所有者を特定する。
 2. GlobalかLocalかを決める。
@@ -167,13 +173,11 @@ styles/
 9. 状態や機能をCSSだけで無理に表現せず、HTML / JS / フレームワーク側の責務を確認する。
 10. 変更後にリポジトリ既定のLintとテストを実行する。
 
-## 強制規則と判断規則を混同しない
+### 強制される規則と判断する規則
 
 このスキルの規則には2種類あります。
 
-### Enforced Rules
-
-AST、Stylelint、ファイルパス、設定ファイルなどから機械的に判定できる規則です。
+**Enforced Rules** — AST、Stylelint、ファイルパス、設定ファイルなどから機械的に判定できる規則です。
 リポジトリにLint実装がある場合、違反をエラーとして扱います。
 
 例:
@@ -185,9 +189,7 @@ AST、Stylelint、ファイルパス、設定ファイルなどから機械的�
 - Layer外にfirst-partyの宣言を書かない
 - Tokensの定義場所をGlobalに限定する
 
-### Semantic Rules
-
-意味やUI上の役割を見ないと判断できない規則です。
+**Semantic Rules** — 意味やUI上の役割を見ないと判断できない規則です。
 Lintだけで完全に判定しようとしません。
 
 例:
@@ -201,6 +203,30 @@ Lintだけで完全に判定しようとしません。
 **
 
 どの規則をLintで強制するか、Lintを新規実装するときの方針は [references/enforcement.md](references/enforcement.md) を読んでください。
+
+### 状態制御
+
+CSSは状態の見た目を表現できますが、アプリケーション状態そのものをCSSへ押し込みすぎないでください。
+
+表示・非表示やモーダル開閉などは、可能なら次を優先します。
+
+- `hidden`
+- `<dialog>`
+- `aria-*` と適切なHTML属性
+- フレームワークの条件描画
+- JavaScriptの状態
+
+`opacity` は純粋な視覚効果ならDesignです。
+機能上の表示制御に使っている場合は、まずHTML / JS側へ状態責務を移せないか検討してください。
+
+### リファレンス
+
+- **Scope、ディレクトリ、フレームワーク統合、Tokensを確認する**: [references/architecture.md](references/architecture.md)
+- **Structure / Designの境界を判断する**: [references/classification.md](references/classification.md)
+- **Stylelint/PostCSS/ASTで規則を強制する、またはLint規則を変更する**: [references/enforcement.md](references/enforcement.md)
+- **具体例や境界例を見る**: [references/examples.md](references/examples.md)
+
+必要なリファレンスだけを読み、すべてを毎回ロードしないでください。
 
 ## 禁止事項
 
@@ -216,27 +242,3 @@ Lintだけで完全に判定しようとしません。
 - UIの表示状態を `opacity: 0` だけで機能的に制御する
 - DOM階層へ深く依存したセレクタを作る
 - Roleごとに所有者ファイルを分割する
-
-## 状態制御
-
-CSSは状態の見た目を表現できますが、アプリケーション状態そのものをCSSへ押し込みすぎないでください。
-
-表示・非表示やモーダル開閉などは、可能なら次を優先します。
-
-- `hidden`
-- `<dialog>`
-- `aria-*` と適切なHTML属性
-- フレームワークの条件描画
-- JavaScriptの状態
-
-`opacity` は純粋な視覚効果ならDesignです。
-機能上の表示制御に使っている場合は、まずHTML / JS側へ状態責務を移せないか検討してください。
-
-## 変更時に読むリファレンス
-
-- **Scope、ディレクトリ、フレームワーク統合、Tokensを確認する**: [references/architecture.md](references/architecture.md)
-- **Structure / Designの境界を判断する**: [references/classification.md](references/classification.md)
-- **Stylelint/PostCSS/ASTで規則を強制する、またはLint規則を変更する**: [references/enforcement.md](references/enforcement.md)
-- **具体例や境界例を見る**: [references/examples.md](references/examples.md)
-
-必要なリファレンスだけを読み、すべてを毎回ロードしないでください。
