@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>発表タイトル</title>
+<style>
+@layer tokens, structure, design;
+
+/* @theme */
+
+@layer structure {
+  :root {
+    --slide-width: 1920px;
+    --slide-height: 1080px;
+    --margin: 96px;
+    --stage-scale: 1;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+  h1, h2, p, figure { margin: 0; }
+  #stage {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: var(--slide-width);
+    height: var(--slide-height);
+    transform-origin: center;
+    transform: translate(-50%, -50%) scale(var(--stage-scale));
+    overflow: hidden;
+  }
+  .slide { position: absolute; inset: 0; display: none; overflow: hidden; }
+  .slide.active { display: block; }
+  .panel { position: absolute; inset: 48px 56px 56px 48px; pointer-events: none; }
+  .header {
+    position: absolute;
+    top: 0;
+    left: var(--margin);
+    right: var(--margin);
+    height: 148px;
+    padding-top: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 48px;
+    font-size: 28px;
+    line-height: 1.4;
+  }
+  .identity { margin-left: auto; }
+  .content {
+    position: absolute;
+    top: 200px;
+    left: var(--margin);
+    right: var(--margin);
+    bottom: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+  h1 { font-size: 80px; line-height: 1.3; text-wrap: balance; overflow-wrap: break-word; }
+  h2 { font-size: 44px; line-height: 1.4; text-wrap: balance; }
+  .body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 32px; font-size: 36px; line-height: 1.6; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; min-height: 0; }
+  .card { min-width: 0; padding: 40px; display: flex; flex-direction: column; gap: 24px; }
+  .points { margin: 0; padding-left: 1.2em; }
+  .points li + li { margin-top: 20px; }
+  .figure { min-width: 0; min-height: 0; }
+  .figure img, .figure video, .figure svg { display: block; width: 100%; max-height: 520px; object-fit: contain; }
+  .caption { margin-top: 16px; font-size: 28px; line-height: 1.5; }
+  .meta { font-size: 32px; line-height: 1.6; }
+  .src { position: absolute; left: var(--margin); bottom: 80px; max-width: 1500px; font-size: 24px; line-height: 1.5; }
+  .pn { position: absolute; right: var(--margin); bottom: 80px; font-size: 30px; line-height: 1.5; }
+  .cover .content { justify-content: center; }
+  .cover h1 { font-size: 104px; }
+  .cover .body { flex: none; }
+  .impact .content { top: var(--margin); bottom: var(--margin); justify-content: center; }
+  .impact h1 { font-size: 144px; }
+  #controls {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  #controls button { min-width: 44px; min-height: 44px; padding: 6px 12px; font-size: inherit; line-height: inherit; cursor: pointer; }
+  #controls button:disabled { cursor: default; }
+  #controls button:focus-visible { outline-width: 3px; outline-style: solid; outline-offset: 3px; }
+  #position { min-width: 64px; text-align: center; }
+  #rotate-hint {
+    display: none;
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    font-size: 15px;
+    line-height: 1.8;
+    text-align: center;
+    pointer-events: none;
+  }
+  #viewer-status { position: fixed; left: 16px; bottom: 16px; max-width: 60%; font-size: 14px; }
+  @media (hover: none) { #controls { display: none; } }
+  @media (hover: none) and (orientation: portrait) { #rotate-hint { display: block; } }
+
+  /* 寸法は冒頭の変数を正とし 印刷と画面で共用する */
+  @page { size: var(--slide-width) var(--slide-height); margin: 0; }
+  @media print {
+    html, body { width: var(--slide-width); height: auto; overflow: visible; }
+    #stage { position: static; width: var(--slide-width); height: auto; overflow: visible; transform: none; }
+    .slide {
+      position: relative;
+      inset: auto;
+      display: block;
+      width: var(--slide-width);
+      height: var(--slide-height);
+      break-after: page;
+      break-inside: avoid;
+    }
+    .slide:last-child { break-after: auto; }
+    #controls, #rotate-hint, #viewer-status { display: none; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+}
+</style>
+</head>
+<body>
+<main id="stage" aria-label="発表タイトル">
+  <section class="slide cover">
+    <div class="panel" aria-hidden="true"></div>
+    <header class="header"><p class="section">セクション名</p><p class="identity">発表名</p></header>
+    <div class="content">
+      <h1>ここに発表全体の<br>結論を入れる</h1>
+      <div class="body"><p class="meta">発表者名　/　発表の場　/　日付</p></div>
+    </div>
+    <p class="pn"></p>
+  </section>
+
+  <section class="slide">
+    <div class="panel" aria-hidden="true"></div>
+    <header class="header"><p class="section">セクション名</p><p class="identity">発表名</p></header>
+    <div class="content">
+      <h1>ここにスライドの結論を入れる</h1>
+      <div class="body">
+        <div class="grid">
+          <section class="card">
+            <h2>根拠の名前</h2>
+            <ul class="points"><li>観測した事実を入れる</li><li>具体的な数値を入れる</li></ul>
+          </section>
+          <section class="card">
+            <h2>具体物の名前</h2>
+            <figure class="figure">
+              <svg viewBox="0 0 560 180" role="img" aria-label="比較図のプレースホルダ"><path d="M80 135V95H150V135ZM190 135V65H260V135ZM300 135V35H370V135Z"/></svg>
+              <figcaption class="caption">具体物のキャプションを入れる</figcaption>
+            </figure>
+          </section>
+        </div>
+      </div>
+    </div>
+    <p class="src">出典名　/　確認日</p>
+    <p class="pn"></p>
+  </section>
+
+  <section class="slide">
+    <div class="panel" aria-hidden="true"></div>
+    <header class="header"><p class="section">セクション名</p><p class="identity">発表名</p></header>
+    <div class="content">
+      <h1>ここに別の結論を入れる</h1>
+      <div class="body"><ul class="points"><li>次の具体的な事実を入れる</li><li>補足する条件を入れる</li></ul></div>
+    </div>
+    <p class="pn"></p>
+  </section>
+</main>
+<p id="rotate-hint">横向きにすると大きく見えます<br>左側をタップで戻る・それ以外で進む</p>
+<nav id="controls" aria-label="スライド操作">
+  <button type="button" id="prev" aria-label="前のスライド" title="前のスライド">‹</button>
+  <span id="position" role="status" aria-live="polite" aria-atomic="true"></span>
+  <button type="button" id="next" aria-label="次のスライド" title="次のスライド">›</button>
+  <button type="button" id="fullscreen" aria-label="全画面表示" title="全画面表示（F）">[ ]</button>
+</nav>
+<p id="viewer-status" role="status" aria-live="polite"></p>
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const slides = Array.from(stage.querySelectorAll('.slide'));
+  const previous = document.getElementById('prev');
+  const next = document.getElementById('next');
+  const position = document.getElementById('position');
+  const fullscreen = document.getElementById('fullscreen');
+  const status = document.getElementById('viewer-status');
+  const dimensions = getComputedStyle(document.documentElement);
+  const width = Number.parseFloat(dimensions.getPropertyValue('--slide-width'));
+  const height = Number.parseFloat(dimensions.getPropertyValue('--slide-height'));
+  if (!slides.length || !Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    throw new Error('The deck needs slides and positive slide dimensions.');
+  }
+  const pad2 = value => String(value).padStart(2, '0');
+  slides.forEach((slide, index) => {
+    const headings = slide.querySelectorAll('h1');
+    const numbers = slide.querySelectorAll('.pn');
+    if (headings.length !== 1 || numbers.length !== 1) {
+      throw new Error(`Slide ${index + 1} must have exactly one h1 and one .pn.`);
+    }
+    if (!headings[0].id) headings[0].id = `slide-heading-${index + 1}`;
+    slide.setAttribute('aria-labelledby', headings[0].id);
+    numbers[0].textContent = `${pad2(index + 1)}/${pad2(slides.length)}`;
+  });
+  let current = -1;
+  const zoomed = () => window.visualViewport && window.visualViewport.scale > 1.05;
+  const interactive = target => target instanceof Element && Boolean(target.closest(
+    '#controls, a, button, input, textarea, select, summary, video, audio, [contenteditable], [data-no-navigation]'
+  ));
+  function fit() {
+    stage.style.setProperty('--stage-scale', Math.min(innerWidth / width, innerHeight / height));
+  }
+  function show(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= slides.length) return;
+    if (current !== index) {
+      if (current >= 0) {
+        slides[current].classList.remove('active');
+        slides[current].querySelectorAll('video, audio').forEach(media => media.pause());
+      }
+      current = index;
+      slides[current].classList.add('active');
+    }
+    previous.disabled = current === 0;
+    next.disabled = current === slides.length - 1;
+    position.textContent = `${pad2(current + 1)}/${pad2(slides.length)}`;
+    const hash = `#${current + 1}`;
+    if (location.hash !== hash) history.replaceState(null, '', hash);
+  }
+  function navigate(index) { if (!zoomed()) show(index); }
+  function fromHash() {
+    const index = Number(location.hash.slice(1)) - 1;
+    show(Number.isInteger(index) && index >= 0 && index < slides.length ? index : 0);
+  }
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+      status.textContent = '';
+    } catch {
+      status.textContent = 'Fullscreen is unavailable in this browser.';
+    }
+  }
+  previous.addEventListener('click', () => navigate(current - 1));
+  next.addEventListener('click', () => navigate(current + 1));
+  fullscreen.addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', () => {
+    fullscreen.setAttribute('aria-label', document.fullscreenElement ? '全画面表示を終了' : '全画面表示');
+  });
+  document.addEventListener('keydown', event => {
+    const inControls = event.target instanceof Element && event.target.closest('#controls');
+    if (event.altKey || event.ctrlKey || event.metaKey || (interactive(event.target) && !inControls)) return;
+    if (inControls && event.key === ' ') return;
+    const destinations = {
+      ArrowRight: current + 1, PageDown: current + 1, ' ': current + 1,
+      ArrowLeft: current - 1, PageUp: current - 1, Home: 0, End: slides.length - 1,
+    };
+    if (Object.hasOwn(destinations, event.key)) {
+      event.preventDefault();
+      navigate(destinations[event.key]);
+    } else if (event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      toggleFullscreen();
+    }
+  });
+  let touchStart = null;
+  let ignoreClickUntil = 0;
+  document.addEventListener('click', event => {
+    if (event.button !== 0 || performance.now() < ignoreClickUntil || interactive(event.target)) return;
+    navigate(event.clientX < innerWidth * 0.3 ? current - 1 : current + 1);
+  });
+  // ピンチの途中とスワイプ後の互換クリックはページ送りに使わない
+  document.addEventListener('touchstart', event => {
+    if (event.touches.length !== 1 || zoomed() || interactive(event.target)) {
+      touchStart = null;
+      ignoreClickUntil = performance.now() + 500;
+      return;
+    }
+    touchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  }, { passive: true });
+  document.addEventListener('touchmove', event => {
+    if (event.touches.length > 1 || zoomed()) {
+      touchStart = null;
+      ignoreClickUntil = performance.now() + 500;
+    }
+  }, { passive: true });
+  document.addEventListener('touchend', event => {
+    const start = touchStart;
+    touchStart = null;
+    if (event.touches.length || zoomed()) {
+      ignoreClickUntil = performance.now() + 500;
+      return;
+    }
+    if (!start || !event.changedTouches.length) return;
+    const dx = event.changedTouches[0].clientX - start.x;
+    const dy = event.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    ignoreClickUntil = performance.now() + 500;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (event.cancelable) event.preventDefault();
+    navigate(dx < 0 ? current + 1 : current - 1);
+  }, { passive: false });
+  document.addEventListener('touchcancel', () => {
+    touchStart = null;
+    ignoreClickUntil = performance.now() + 500;
+  }, { passive: true });
+  window.addEventListener('hashchange', fromHash);
+  window.addEventListener('resize', fit);
+  fit();
+  fromHash();
+})();
+</script>
+</body>
+</html>

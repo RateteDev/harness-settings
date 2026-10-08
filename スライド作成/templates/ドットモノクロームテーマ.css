@@ -1,0 +1,49 @@
+@import url("https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=DotGothic16&display=swap");
+
+@layer tokens {
+  :root {
+    --color-bg: #f2f2ee;
+    --color-surface: #fbfbf8;
+    --color-text: #111111;
+    --color-text-muted: #555555;
+    --color-border: #8c8c8c;
+    --color-dot: rgb(17 17 17 / 10%);
+    --color-impact-bg: #0d0d0d;
+    --color-impact-text: #ededed;
+    --color-impact-muted: #a6a6a6;
+    --color-impact-border: #6b6b6b;
+    --color-impact-dot: #262626;
+    --color-screen: #000000;
+    --shadow-card: 8px 8px 0 var(--color-text);
+    --font-body: "BIZ UDPGothic", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP", sans-serif;
+    --font-page: "DotGothic16", monospace;
+  }
+}
+
+@layer design {
+  :root { font-family: var(--font-body); color: var(--color-text); font-variant-numeric: lining-nums tabular-nums; }
+  body { background: var(--color-screen); }
+  .slide {
+    background-color: var(--color-bg);
+    background-image: radial-gradient(var(--color-dot) 1.2px, transparent 1.7px);
+    background-size: 16px 16px;
+  }
+  .panel { background: var(--color-surface); border: 3px solid var(--color-text); box-shadow: var(--shadow-card); border-radius: 0; }
+  .header { border-bottom: 2px dotted var(--color-border); color: var(--color-text-muted); font-weight: 700; }
+  h1, h2 { font-weight: 700; letter-spacing: -0.01em; }
+  .card { background: var(--color-surface); border: 3px solid var(--color-text); box-shadow: var(--shadow-card); border-radius: 0; }
+  .figure svg { fill: var(--color-text); }
+  .caption, .meta, .src { color: var(--color-text-muted); }
+  /* ドット風の書体はページ番号だけに使う */
+  .pn { color: var(--color-text-muted); font-family: var(--font-page); letter-spacing: 0.04em; }
+  .impact { background-color: var(--color-impact-bg); background-image: radial-gradient(var(--color-impact-dot) 1.2px, transparent 1.7px); color: var(--color-impact-text); }
+  .impact .panel { background: none; border: none; box-shadow: none; }
+  .impact .header { color: var(--color-impact-muted); border-color: var(--color-impact-border); }
+  .impact .pn { color: var(--color-impact-muted); }
+  #controls { color: var(--color-surface); background: var(--color-impact-bg); border: 1px solid var(--color-impact-border); }
+  #controls button { font-family: var(--font-body); background: var(--color-impact-bg); color: var(--color-impact-text); border: 1px solid var(--color-impact-border); }
+  #controls button:hover:not(:disabled) { background: var(--color-impact-text); color: var(--color-impact-bg); }
+  #controls button:disabled { color: var(--color-impact-muted); }
+  #controls button:focus-visible { outline-color: var(--color-impact-text); }
+  #rotate-hint, #viewer-status { color: var(--color-impact-muted); }
+}
