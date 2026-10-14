@@ -24,13 +24,13 @@ metadata:
 2. [index.mdx](templates/index.mdx)をコピーして記入する。
    記録.mdのh1をタイトルにし、h1以降を本文へ貼る。
    本文の`{`と`<`（大文字が続く場合）は、`\{`・`&lt;`にするかコード表記にする。
-3. `article-preview fix-spacing <index.mdx>`の後、`article-preview <index.mdx> --out <名前>-アーカイブ.html --media inline`でHTMLを作る。
+3. `md-render fix-spacing <index.mdx>`の後、`md-render <index.mdx> --out <名前>-アーカイブ.html --media inline`でHTMLを作る。
 4. 作業フォルダを`<名前>-原本.zip`にする（`node_modules`・`.git`等を除く）。
 5. `unzip`と`diff -r`でzipの中身の一致を確かめ、秘密情報が無いことを確認する。
 6. ユーザーの確認後、作業フォルダをローカルから消す。
 
 HTMLのファイル名には「アーカイブ」を含め、zipは同じ名前を使う。
-`article-preview`コマンドを前提とし、作業用の`index.mdx`は/tmpに置く。
+`md-render`コマンドを前提とし、作業用の`index.mdx`は/tmpに置く。
 
 ### 読む
 

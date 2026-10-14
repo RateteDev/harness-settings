@@ -15,25 +15,25 @@ MD/MDXをその場でレンダリングすると、環境によって見た目�
 
 ## 進め方
 
-`article-preview`コマンドがPATHにあることを前提とする。
+`md-render`コマンドがPATHにあることを前提とする。
 無ければ作業を始めず、導入を所有者へ確認する。
-引数と終了コードは使用前に`article-preview --help`で確認する。
+引数と終了コードは使用前に`md-render --help`で確認する。
 
 ### 変換
 
-現在のrepositoryに属する成果物は`.tmp/article-preview/`へ出す。
+現在のrepositoryに属する成果物は`.tmp/md-render/`へ出す。
 
 ```bash
-mkdir -p .tmp/article-preview
-article-preview \
+mkdir -p .tmp/md-render
+md-render \
   "<INPUT.mdx>" \
-  --out ".tmp/article-preview/<NAME>.html" \
+  --out ".tmp/md-render/<NAME>.html" \
   --media inline
 ```
 
 `--media inline`ならlocal画像を含めて1ファイルにできる。
 到達可能な絶対URLをそのまま参照させたい場合だけ`--media link`へ変える。
-入力記法は`article-preview skills --help`の項目から必要なものを読む。
+入力記法は`md-render skills --help`の項目から必要なものを読む。
 npmの`md-preview`は無関係なpackageなので使わない。
 
 ### 検証
