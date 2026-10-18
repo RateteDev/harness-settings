@@ -4,7 +4,7 @@ description: |
   Webサイトにミニマルなライト/ダークテーマ切り替えを実装するときに使う。
   初期表示のちらつき防止、テーマの保存と復元、アイコンとラベルの更新を扱う。
 metadata:
-  user-review: false
+  user-review: true
 ---
 
 # テーマ切り替え
