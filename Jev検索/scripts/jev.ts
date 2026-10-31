@@ -1,7 +1,18 @@
 #!/usr/bin/env bun
-import { SETTINGS } from "../../../plugins/jev-prefetch/settings.ts"
 
-// 候補ごとの評価問題。API通信系の値（モデル・エンドポイント・分割上限）は plugin settings.ts が正本。
+// 分割の上限はAPI側の制限（state・1リクエストの大きさ）に合わせた値で、超えるとリクエストが弾かれる。
+// 課金は入力量に比例するため、同時実行は控えめにしている。
+const SETTINGS = {
+  model: "jev-latest",
+  endpoint: "https://api.typesafe.ai/v1/systemone",
+  batchSize: 100,
+  concurrency: 4,
+  requestMaxBytes: 60_000,
+  stateMaxBytes: 28_000,
+  timeoutMs: 45_000,
+} as const
+
+// 候補ごとの評価問題。
 const QUESTION =
   "Given the user's request, does this candidate concern the same subject, problem, " +
   "or goal, such that investigating it would contribute to fulfilling the request?"
