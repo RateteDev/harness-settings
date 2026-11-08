@@ -1,13 +1,25 @@
-# Claude Codeの利用状況
+# Claude Code利用状況の確認
 
-`scripts/claude-code-usage.sh`はClaude CodeのOAuth認証情報から現在のアクセストークンを読み、`GET https://api.anthropic.com/api/oauth/usage`を呼び出す。
-認証情報は更新・保存せず、レスポンスから使用量ウィンドウとリセット時刻のみを出力する。
+`scripts/claude-code-usage.sh` を実行し、Claude Codeの使用量とリセット時刻を取得します。
+※OAuth認証情報を読み取り専用で使用し、非公開API（`GET /api/oauth/usage`）を呼び出します。
 
-出力の`data_type`はライブのクォータを示す。
-`limits`配列の`kind`・`percent`・`resets_at`が使用量とリセット時刻で、対応する新形式がない場合は従来形式のウィンドウを出力する。
+## 前提条件
+- `curl`, `jq` がインストールされていること
+- Claude Code CLIでログイン済みであること
 
-スクリプトには`curl`、`jq`、Claude Code CLIが必要である。
-認証エラー時はClaude Codeで再ログインしてから再実行する。
-レート制限時は再試行を連続させない。
+## 実行方法
+```bash
+./scripts/claude-code-usage.sh
+```
 
-このエンドポイントは非公開APIであり、挙動は保証されません。
+## 出力内容
+- **使用量**: `limits[].kind`, `limits[].percent`（使用率）
+- **リセット時刻**: `limits[].resets_at`
+※新形式のデータがない場合は、従来形式のウィンドウ情報をフォールバック表示します。
+
+## トラブルシューティング
+- **認証エラー（401等）**: Claude Code CLIで再ログイン後、スクリプトを再実行してください。
+- **レート制限（429）**: 即座に再試行せず、時間をおいてから実行してください。
+
+## 注意事項
+- Anthropicの非公開APIを使用しているため、予告なく仕様変更される可能性があります。
