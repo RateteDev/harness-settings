@@ -15,13 +15,8 @@ metadata:
 
 ## 進め方
 
-作業に応じて次のリファレンスを読む。
-
-| 何をするか | 読むもの |
-|---|---|
-| 開発コマンドを定義・変更する | `references/justfile.md` |
-| CIを構成する | `references/ci.md` |
-| 既存リポジトリを監査する | `references/audit.md` |
+新規の立ち上げでは雛形を配置し、既存リポジトリでは監査から始める。
+justfileとCIを変えるときは、雛形の書き方と下の規約に合わせる。
 
 ### 新規リポジトリの立ち上げ
 
@@ -76,6 +71,29 @@ recipeの説明は`just --list`に出る一行である。
 `just --list`は直前のcomment blockの最終行だけを拾うため、理由を複数行書く場合は`[doc]`で説明を明示し、commentは理由の記録として残す。
 `just --list`はコマンドの唯一の発見面であり、そこが断片で埋まると発見できない。
 同梱のaudit scriptは、複数行commentを持ちながら`[doc]`を持たないrecipeを検出する。
+
+### justfileの規約
+
+- recipeは`{app}-{action}`で名付け、`[group]`でアプリごとにまとめる。
+- アプリごとに`{app}-check`と`{app}-fix`を対で置く。
+  `check`はファイルを書き換えずにlint・format検査・型検査を行い、CIとpre-commitから呼ぶ。
+  `fix`は自動修正できる処理をすべて行う。
+- 外部に見せないrecipeは`[private]`を付け、名前を`_`で始める。
+- 引数にはdefaultを付け、引数が複雑になるならrecipeを分ける。
+- `repo-checks`には、そのリポジトリで常に成立すべき条件だけを置き、特定pathの変更時だけ要る検査は各アプリの`check`へ置く。
+- 複数のCIを並列に走らせるrecipeは、ジョブごとのPIDを個別に`wait`する。
+  引数なしの`wait`は常に0で終わり、どれかが落ちても成功に見えるためである。
+
+### CIの規約
+
+- jobはアプリごとの`{app}-ci`と`repo-checks`に分け、互いに依存させない。
+- stepにはコマンドを直接書かず、justのrecipeを呼ぶ。
+  手元の`just`でCIと同じ検査を再現できるようにするためである。
+- actionはタグで固定し、`mise.toml`の版数にも`latest`や`stable`を使わない。
+- 依存のcacheはlockfileのhashを鍵にし、`concurrency`で同じbranchの重複実行を取り消す。
+- Workers Buildsでjustを入れるときは、`install.sh`に`--tag`で版数を渡す。
+- 主な担保は`just ci-local`とし、リモートCIは保険と位置付ける。
+  そのため、miseがツールを取得する分の立ち上がりの遅さは許容する。
 
 ### 既存リポジトリの監査
 
