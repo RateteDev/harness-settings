@@ -82,8 +82,7 @@ Designを外した結果として、次の変化は許容します。
 - 重要な境界や領域が判別できなくなる
 - レイアウト、折り返し、占有領域が成立しなくなる
 
-**Structure / Designの判定に迷ったらStructureに置いてください。
-**
+**Structure / Designの判定に迷ったらStructureに置いてください**。
 
 Designは「消しても成立する」という契約を負うため、境界例をDesignへ誤配置するより、Structure側へ倒す方が安全です。
 ただし、単に「念のため」という理由だけで何でもStructureへ寄せないでください。
@@ -95,9 +94,8 @@ Designは「消しても成立する」という契約を負うため、境界�
 
 Tokensは「共通値」ではありません。
 
-**色は常にGlobal Tokenを通します。
-色以外は、テーマによって実際に切り替わる値だけをTokenにします。
-**
+**色は常にGlobal Tokenを通します**。
+**色以外は、テーマによって実際に切り替わる値だけをTokenにします**。
 
 これは2つの目的を両立するためです。
 
@@ -199,8 +197,7 @@ Lintだけで完全に判定しようとしません。
 - あるUIをPage所有にするかComponent所有にするか
 - 新しい値をテーマTokenにする必要が本当にあるか
 
-**Lintに通ったことは、Semantic Rulesまで満たしたことを意味しません。
-**
+**Lintに通ったことは、Semantic Rulesまで満たしたことを意味しません**。
 
 どの規則をLintで強制するか、Lintを新規実装するときの方針は [references/enforcement.md](references/enforcement.md) を読んでください。
 

@@ -47,8 +47,7 @@ Designを削除して起きてはいけないもの:
 
 ## 3. 迷ったときの既定値
 
-**Structure / Designの判定に迷ったらStructureに置きます。
-**
+**Structure / Designの判定に迷ったらStructureに置きます**。
 
 理由は、Designが「削除しても成立する」という強い契約を持つためです。
 
