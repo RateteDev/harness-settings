@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>認証登録フロー デモ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+      :root{
+        --bg:#e9ebed;
+        --rail:#101315;
+        --rail-ink:#eef1f3;
+        --rail-muted:#9aa4ac;
+        --rail-line:#262b2f;
+        --card:#ffffff;
+        --ink:#14181b;
+        --muted:#5c666e;
+        --faint:#8a949c;
+        --line:#dde2e6;
+        --line-strong:#c9d1d7;
+        --accent:#101315;
+        --accent-ink:#ffffff;
+        --teal:#0d7263;
+        --teal-bg:#e3f2ee;
+        --amber:#9a6206;
+        --amber-bg:#fdf0d7;
+        --red:#b3261e;
+        --red-bg:#fbeae9;
+        --field:#f4f6f7;
+        --shadow:0 24px 60px -24px rgba(16,19,21,.35), 0 4px 14px rgba(16,19,21,.08);
+        --radius:14px;
+      }
+      @media (prefers-color-scheme: dark){
+        :root{
+          --bg:#0b0d0e;
+          --rail:#171a1c;
+          --rail-line:#2b3033;
+          --card:#15181a;
+          --ink:#edf0f2;
+          --muted:#a3adb4;
+          --faint:#7c868e;
+          --line:#2a2f33;
+          --line-strong:#3a4146;
+          --accent:#edf0f2;
+          --accent-ink:#101315;
+          --teal:#4cc2ab;
+          --teal-bg:#12332d;
+          --amber:#e8b45a;
+          --amber-bg:#3a2c10;
+          --red:#f0908a;
+          --red-bg:#3d1a18;
+          --field:#1d2124;
+          --shadow:0 24px 60px -24px rgba(0,0,0,.8), 0 4px 14px rgba(0,0,0,.4);
+        }
+      }
+      *{box-sizing:border-box}
+      html,body{margin:0;padding:0}
+      body{
+        background:var(--bg);
+        color:var(--ink);
+        font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+        -webkit-font-smoothing:antialiased;
+        line-height:1.6;
+      }
+      button{font-family:inherit;cursor:pointer}
+      input{font-family:inherit}
+      :focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+
+      .layout{
+        max-width:1200px;margin:0 auto;
+        display:grid;grid-template-columns:348px minmax(0,1fr);
+        gap:22px;padding:22px 22px 34px;align-items:start;
+      }
+
+      /* ---------- Rail ---------- */
+      .rail{
+        background:var(--rail);color:var(--rail-ink);
+        border-radius:18px;padding:26px 24px 24px;
+        position:sticky;top:22px;
+      }
+      .kicker{
+        font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;
+        color:var(--rail-muted);text-transform:uppercase;
+      }
+      .rail h1{font-size:27px;font-weight:900;line-height:1.35;margin:10px 0 10px;letter-spacing:.01em}
+      .rail-lede{font-size:13.5px;color:var(--rail-muted);margin:0 0 22px;line-height:1.75}
+      .steps{list-style:none;margin:0 0 20px;padding:0;display:flex;flex-direction:column;gap:2px}
+      .steps li{
+        display:flex;gap:12px;align-items:flex-start;
+        padding:9px 10px;border-radius:10px;color:var(--rail-muted);
+      }
+      .steps li .num{
+        flex:none;width:24px;height:24px;border-radius:50%;
+        border:1.5px solid var(--rail-line);
+        display:flex;align-items:center;justify-content:center;
+        font-family:"IBM Plex Mono",monospace;font-size:11.5px;margin-top:1px;
+        background:transparent;color:inherit;
+      }
+      .steps li .st-label{font-size:14px;font-weight:700;line-height:1.4}
+      .steps li .st-sub{font-size:11.5px;line-height:1.5;opacity:.85}
+      .steps li.active{background:#1e2326;color:var(--rail-ink)}
+      .steps li.active .num{border-color:var(--teal);background:var(--teal);color:#fff}
+      .steps li.done{color:var(--rail-ink)}
+      .steps li.done .num{border-color:var(--teal);color:var(--teal)}
+      @media (prefers-color-scheme: dark){ .steps li.active{background:#22272a} }
+
+      .explain{
+        border-top:1px solid var(--rail-line);padding-top:18px;margin-bottom:20px;
+      }
+      .explain h2{font-size:15px;font-weight:900;margin:0 0 7px}
+      .explain h2::before{content:"";display:none}
+      .explain p{font-size:13px;color:var(--rail-muted);margin:0;line-height:1.8}
+      .policy{border-top:1px solid var(--rail-line);padding-top:16px;margin-bottom:18px}
+      .policy h3,.ref h3{font-size:12px;letter-spacing:.08em;margin:0 0 9px;color:var(--rail-ink)}
+      .policy ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+      .policy li{
+        font-size:11.5px;font-weight:700;border:1px solid var(--rail-line);
+        border-radius:999px;padding:4px 10px;color:var(--rail-ink);white-space:nowrap;
+      }
+      .policy li s{color:var(--rail-muted);font-weight:500}
+      .ref{border-top:1px solid var(--rail-line);padding-top:16px;margin-bottom:20px}
+      .ref p{font-size:12px;color:var(--rail-muted);margin:0;line-height:1.75}
+      .rail-reset{
+        width:100%;background:transparent;color:var(--rail-ink);
+        border:1px solid var(--rail-line);border-radius:10px;
+        padding:10px;font-size:13px;font-weight:700;
+      }
+      .rail-reset:hover{border-color:var(--rail-muted)}
+
+      /* ---------- Stage / browser frame ---------- */
+      .stage-wrap{min-width:0;padding-top:6px}
+      .browser{
+        background:var(--card);border-radius:18px;box-shadow:var(--shadow);
+        overflow:hidden;border:1px solid var(--line);
+      }
+      .chrome{
+        display:flex;align-items:center;gap:12px;
+        padding:11px 16px;border-bottom:1px solid var(--line);
+        background:var(--field);
+      }
+      .dots{display:flex;gap:6px;flex:none}
+      .dots span{width:10px;height:10px;border-radius:50%;background:var(--line-strong)}
+      .url{
+        flex:1;min-width:0;text-align:center;
+        font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);
+        background:var(--card);border:1px solid var(--line);border-radius:8px;
+        padding:4px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      }
+      .demo-tag{
+        flex:none;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;
+        border:1px solid var(--line-strong);border-radius:6px;padding:3px 7px;color:var(--muted);
+      }
+      .stage{position:relative;min-height:600px;display:flex;flex-direction:column}
+      .stage-note{font-size:12.5px;color:var(--muted);text-align:center;margin:14px 8px 0}
+      .stage-note b{color:var(--ink)}
+
+      .screen{display:none;padding:44px 40px 48px;flex:1;flex-direction:column}
+      .screen.on{display:flex}
+      .narrow{max-width:400px;width:100%;margin:0 auto;display:flex;flex-direction:column;flex:1}
+
+      .brand{display:flex;align-items:center;gap:10px;margin-bottom:34px}
+      .brand-mark{
+        width:34px;height:34px;border-radius:9px;background:var(--ink);color:var(--card);
+        display:flex;align-items:center;justify-content:center;flex:none;
+      }
+      .brand-name{font-weight:900;font-size:18px;letter-spacing:.02em;line-height:1.2}
+      .brand-sub{font-size:11px;color:var(--faint);line-height:1.3}
+
+      h2.screen-title{font-size:25px;font-weight:900;line-height:1.4;margin:0 0 8px;letter-spacing:.01em}
+      .screen-lede{font-size:14px;color:var(--muted);margin:0 0 26px;line-height:1.8}
+
+      .btn{
+        display:flex;align-items:center;justify-content:center;gap:11px;
+        width:100%;border-radius:12px;padding:14px 16px;
+        font-size:15px;font-weight:700;border:1px solid transparent;
+        transition:transform .08s ease, box-shadow .15s ease, background .15s ease;
+        background:var(--accent);color:var(--accent-ink);
+      }
+      .btn:active{transform:scale(.985)}
+      .btn-google{background:var(--card);color:var(--ink);border-color:var(--line-strong);box-shadow:0 1px 3px rgba(16,19,21,.10)}
+      .btn-google:hover{box-shadow:0 3px 10px rgba(16,19,21,.14)}
+      .btn-ghost{background:transparent;color:var(--ink);border-color:var(--line-strong)}
+      .btn-quiet{background:transparent;color:var(--muted);border:none;font-size:13.5px;padding:10px}
+      .btn-quiet:hover{color:var(--ink)}
+      .btn[disabled]{opacity:.45;cursor:not-allowed}
+      .btn-sub{display:block;font-size:11.5px;font-weight:500;opacity:.72;margin-top:1px}
+      .btn-col{flex-direction:column;gap:0;align-items:center}
+      .btn-row{display:flex;align-items:center;gap:11px}
+
+      .or-note{
+        display:flex;gap:9px;align-items:flex-start;
+        background:var(--field);border-radius:10px;padding:12px 14px;
+        font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:20px;
+      }
+      .or-note svg{flex:none;margin-top:2px}
+      .terms{font-size:11.5px;color:var(--faint);text-align:center;margin:22px 0 0;line-height:1.8}
+      .terms a{color:var(--muted)}
+      .have-account{font-size:13px;color:var(--muted);text-align:center;margin-top:auto;padding-top:26px}
+      .have-account a{color:var(--ink);font-weight:700}
+
+      /* Google chooser (external site look: always light) */
+      .google-wrap{max-width:400px;width:100%;margin:0 auto}
+      .google-card{
+        background:#fff;color:#1f1f1f;border:1px solid #dadce0;border-radius:16px;
+        padding:34px 30px 26px;font-family:system-ui,"Noto Sans JP",sans-serif;
+      }
+      .google-card .g-logo{text-align:center;margin-bottom:14px}
+      .google-card h3{font-size:22px;font-weight:500;text-align:center;margin:0 0 4px;color:#1f1f1f}
+      .google-card .g-sub{text-align:center;font-size:14px;color:#444746;margin:0 0 22px}
+      .google-card .g-sub b{color:#0b57d0;font-weight:500}
+      .acct{
+        display:flex;gap:13px;align-items:center;width:100%;text-align:left;
+        background:none;border:none;border-top:1px solid #e0e3e7;
+        padding:13px 6px;color:#1f1f1f;
+      }
+      .acct:hover{background:#f0f4f9}
+      .acct .avatar{
+        width:34px;height:34px;border-radius:50%;flex:none;color:#fff;
+        display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;
+      }
+      .acct .a-name{font-size:14.5px;font-weight:600;line-height:1.35}
+      .acct .a-mail{font-size:12.5px;color:#5f6368;line-height:1.35;word-break:break-all}
+      .acct.plain{font-size:14px;color:#444746;align-items:center}
+      .g-foot{font-size:11.5px;color:#5f6368;margin-top:20px;line-height:1.7;text-align:left}
+      .g-form{display:none;border-top:1px solid #e0e3e7;padding-top:18px}
+      .g-form.on{display:block}
+      .g-form label{font-size:12.5px;color:#444746;display:block;margin-bottom:6px}
+      .g-input{
+        width:100%;border:1px solid #80868b;border-radius:6px;padding:11px 12px;
+        font-size:15px;color:#1f1f1f;background:#fff;margin-bottom:14px;
+      }
+      .g-next{
+        background:#0b57d0;color:#fff;border:none;border-radius:999px;
+        padding:10px 22px;font-size:14px;font-weight:600;float:right;
+      }
+      .g-next:hover{background:#0842a0}
+
+      /* Forms */
+      .field-label{font-size:13px;font-weight:700;margin:0 0 7px;display:block}
+      .email-display{
+        display:flex;align-items:center;gap:11px;
+        border:1.5px solid var(--line-strong);border-radius:12px;padding:13px 15px;
+        background:var(--card);
+      }
+      .email-display .addr{font-size:15px;font-weight:700;word-break:break-all;line-height:1.4}
+      .badge{
+        flex:none;font-size:10.5px;font-weight:700;letter-spacing:.04em;
+        border-radius:999px;padding:3px 9px;white-space:nowrap;
+      }
+      .badge-teal{background:var(--teal-bg);color:var(--teal)}
+      .badge-gray{background:var(--field);color:var(--muted);border:1px solid var(--line)}
+      .badge-amber{background:var(--amber-bg);color:var(--amber)}
+      .text-input{
+        width:100%;border:1.5px solid var(--line-strong);border-radius:12px;
+        padding:13px 15px;font-size:15.5px;background:var(--card);color:var(--ink);
+      }
+      .text-input::placeholder{color:var(--faint)}
+      .hint{font-size:12.5px;color:var(--muted);margin:9px 0 0;line-height:1.7}
+      .error-msg{display:none;font-size:13px;color:var(--red);background:var(--red-bg);border-radius:9px;padding:9px 12px;margin-top:12px;line-height:1.6}
+      .error-msg.on{display:block}
+      .stack{display:flex;flex-direction:column;gap:12px}
+      .spacer{flex:1}
+
+      .code-row{display:flex;gap:8px;justify-content:space-between;margin:6px 0 4px}
+      .code-box{
+        width:100%;min-width:0;text-align:center;
+        font-family:"IBM Plex Mono",monospace;font-size:23px;font-weight:600;
+        border:1.5px solid var(--line-strong);border-radius:11px;
+        padding:12px 0;background:var(--card);color:var(--ink);
+      }
+      .code-box:focus{border-color:var(--teal);outline:none}
+      @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+      .shake{animation:shake .4s ease}
+
+      /* Invite */
+      .invite-visual{
+        display:flex;flex-direction:column;align-items:center;text-align:center;
+        padding:8px 0 4px;
+      }
+      .big-icon{
+        width:76px;height:76px;border-radius:22px;background:var(--field);
+        border:1px solid var(--line);display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+      }
+      .merits{list-style:none;margin:0 0 26px;padding:0;display:flex;flex-direction:column;gap:10px}
+      .merits li{display:flex;gap:10px;font-size:13.5px;color:var(--muted);line-height:1.7;align-items:flex-start}
+      .merits li svg{flex:none;margin-top:3px}
+      .merits li b{color:var(--ink)}
+
+      /* Home */
+      .home-head{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+      .home-head .avatar-me{
+        width:42px;height:42px;border-radius:50%;background:var(--teal);color:#fff;flex:none;
+        display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;
+      }
+      .memo-list{display:flex;flex-direction:column;gap:10px;margin:20px 0 28px}
+      .memo{
+        border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:var(--card);
+      }
+      .memo .m-title{font-weight:700;font-size:14.5px;margin:0 0 2px}
+      .memo .m-body{font-size:12.5px;color:var(--muted);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .status-card{border:1.5px solid var(--line-strong);border-radius:var(--radius);overflow:hidden}
+      .status-card .sc-head{
+        display:flex;align-items:center;gap:9px;padding:13px 16px;
+        background:var(--field);border-bottom:1px solid var(--line);
+        font-weight:900;font-size:14px;
+      }
+      .status-row{
+        display:flex;align-items:center;gap:12px;padding:13px 16px;
+        border-bottom:1px solid var(--line);
+      }
+      .status-row:last-child{border-bottom:none}
+      .status-row .sr-icon{
+        width:34px;height:34px;border-radius:9px;background:var(--field);border:1px solid var(--line);
+        display:flex;align-items:center;justify-content:center;flex:none;
+      }
+      .status-row .sr-main{flex:1;min-width:0}
+      .status-row .sr-label{font-size:11.5px;color:var(--faint);line-height:1.3}
+      .status-row .sr-value{font-size:14px;font-weight:700;line-height:1.45;word-break:break-all}
+      .recovery-note{
+        display:flex;gap:10px;align-items:flex-start;border-radius:12px;
+        padding:13px 15px;font-size:13px;line-height:1.75;margin-top:14px;
+      }
+      .recovery-note svg{flex:none;margin-top:2px}
+      .recovery-note.ok{background:var(--teal-bg);color:var(--ink)}
+      .recovery-note.warn{background:var(--amber-bg);color:var(--ink)}
+      .home-actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+      .home-actions .btn{flex:1;min-width:150px}
+
+      /* Simulated incoming mail */
+      .mail-toast{
+        position:absolute;top:16px;right:16px;left:16px;z-index:30;
+        max-width:430px;margin-left:auto;
+        background:var(--card);border:1.5px solid var(--teal);border-radius:14px;
+        box-shadow:0 16px 40px -12px rgba(16,19,21,.35);
+        padding:14px 16px;display:none;
+      }
+      .mail-toast.on{display:block}
+      .mail-toast .mt-head{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.1em;color:var(--teal);font-weight:700;font-family:"IBM Plex Mono",monospace}
+      .mail-toast .mt-from{font-size:13px;font-weight:700;margin-top:5px}
+      .mail-toast .mt-body{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.6}
+      .mail-toast .mt-code{
+        font-family:"IBM Plex Mono",monospace;font-size:27px;font-weight:600;letter-spacing:.28em;
+        margin:6px 0 2px;color:var(--ink);
+      }
+      .mail-toast .mt-close{
+        position:absolute;top:8px;right:8px;background:none;border:none;color:var(--faint);
+        font-size:16px;line-height:1;padding:6px;
+      }
+
+      /* Overlays: loading + passkey sheet */
+      .overlay{
+        position:absolute;inset:0;z-index:40;display:none;
+        background:rgba(12,14,15,.52);backdrop-filter:blur(2px);
+        align-items:center;justify-content:center;padding:22px;
+      }
+      .overlay.on{display:flex}
+      .spinner-card{
+        background:var(--card);border-radius:16px;padding:30px 34px;text-align:center;
+        box-shadow:var(--shadow);max-width:300px;width:100%;
+      }
+      .spinner{
+        width:38px;height:38px;border-radius:50%;margin:0 auto 14px;
+        border:3.5px solid var(--line);border-top-color:var(--teal);
+        animation:spin .8s linear infinite;
+      }
+      @keyframes spin{to{transform:rotate(360deg)}}
+      .spinner-card p{margin:0;font-size:14px;font-weight:700}
+      .spinner-card small{color:var(--muted);font-size:12px}
+
+      .sheet{
+        background:var(--card);border-radius:20px;padding:30px 28px 26px;
+        max-width:360px;width:100%;text-align:center;box-shadow:var(--shadow);
+      }
+      .sheet .face{
+        width:74px;height:74px;margin:0 auto 16px;border-radius:20px;
+        background:var(--field);border:1px solid var(--line);
+        display:flex;align-items:center;justify-content:center;color:var(--ink);
+      }
+      .sheet.scanning .face{color:var(--teal);border-color:var(--teal);animation:pulse 1s ease-in-out infinite}
+      .sheet.done .face{color:var(--teal);border-color:var(--teal);background:var(--teal-bg)}
+      @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+      .sheet h3{font-size:18px;font-weight:900;margin:0 0 6px}
+      .sheet p{font-size:13px;color:var(--muted);margin:0 0 20px;line-height:1.75}
+      .sheet .sheet-status{font-size:12.5px;color:var(--teal);font-weight:700;min-height:20px;margin-top:12px}
+
+      @media (max-width:900px){
+        .layout{display:flex;flex-direction:column;padding:14px 12px 26px;gap:16px}
+        .stage-wrap{order:-1;width:100%}
+        .rail{position:static;padding:22px 20px;width:100%}
+        .rail h1{font-size:23px}
+        .steps{flex-direction:row;flex-wrap:wrap;gap:6px}
+        .steps li{padding:7px 9px;border:1px solid var(--rail-line);flex:1 1 44%}
+        .steps li .st-sub{display:none}
+        .screen{padding:32px 20px 36px}
+        .stage{min-height:540px}
+        .url{font-size:11px}
+      }
+      @media (prefers-reduced-motion: reduce){
+        .spinner{animation-duration:2.4s}
+        .sheet.scanning .face{animation:none}
+        .shake{animation:none}
+        .btn{transition:none}
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <!-- ======= Rail ======= -->
+      <aside class="rail">
+        <h1>認証・登録フロー<br />デモ</h1>
+
+        <ol class="steps" id="steps">
+          <li data-step="1" class="active">
+            <span class="num">1</span>
+            <span><span class="st-label">入口を選ぶ</span></span>
+          </li>
+          <li data-step="2">
+            <span class="num">2</span>
+            <span><span class="st-label">認証する</span></span>
+          </li>
+          <li data-step="3">
+            <span class="num">3</span>
+            <span><span class="st-label">連絡用メール</span></span>
+          </li>
+          <li data-step="4">
+            <span class="num">4</span>
+            <span><span class="st-label">もう1つの入口</span></span>
+          </li>
+          <li data-step="5">
+            <span class="num">5</span>
+            <span><span class="st-label">完了</span></span>
+          </li>
+        </ol>
+
+        <button class="rail-reset" id="railReset" type="button">最初から</button>
+      </aside>
+
+      <!-- ======= Stage ======= -->
+      <section class="stage-wrap">
+        <div class="browser">
+          <div class="chrome">
+            <span class="dots"><span></span><span></span><span></span></span>
+            <span class="url" id="urlBar">notte.example/signup</span>
+            <span class="demo-tag">DEMO</span>
+          </div>
+
+          <div class="stage" id="stage">
+
+            <!-- Simulated incoming mail -->
+            <div class="mail-toast" id="mailToast" role="status">
+              <button class="mt-close" id="mailClose" type="button" aria-label="メール通知を閉じる">×</button>
+              <div class="mt-head">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+                メールが届きました
+              </div>
+              <div class="mt-from">Notte</div>
+              <div class="mt-code" id="mailCode">------</div>
+            </div>
+
+            <!-- 1: Start -->
+            <div class="screen on" id="screen-start">
+              <div class="narrow">
+                <div class="brand">
+                  <span class="brand-mark">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </span>
+                  <span><span class="brand-name">Notte</span></span>
+                </div>
+
+                <h2 class="screen-title">アカウントを作成</h2>
+
+                <div class="stack">
+                  <button class="btn btn-google" id="btnGoogleStart" type="button">
+                    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.3 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.3 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
+                    Google で登録
+                  </button>
+
+                  <button class="btn btn-col" id="btnPasskeyStart" type="button">
+                    <span class="btn-row">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M9 8v2"/><path d="M15 8v2"/><path d="M12 8v4l-1.2 1.8"/><path d="M9.2 16.2c.9.8 4.7.8 5.6 0"/></svg>
+                      パスキーで登録
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2a: Google chooser -->
+            <div class="screen" id="screen-google">
+              <div class="google-wrap">
+                <div class="google-card">
+                  <div class="g-logo" style="display:flex;align-items:center;justify-content:center;gap:8px">
+                    <svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.3 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.3 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
+                    <span style="font-size:19px;font-weight:500;color:#444746;letter-spacing:.01em">Google</span>
+                  </div>
+                  <h3>ログイン</h3>
+                  <p class="g-sub"><b>Notte</b> に進む</p>
+
+                  <div id="acctList">
+                    <button class="acct" type="button" data-gname="山田 太郎" data-gmail="taro.yamada@example.com">
+                      <span class="avatar" style="background:#7b1fa2">太</span>
+                      <span><span class="a-name">山田 太郎</span><br /><span class="a-mail">taro.yamada@example.com</span></span>
+                    </button>
+                    <button class="acct" type="button" data-gname="山田 花子" data-gmail="hanako.yamada@example.com">
+                      <span class="avatar" style="background:#00695c">花</span>
+                      <span><span class="a-name">山田 花子</span><br /><span class="a-mail">hanako.yamada@example.com</span></span>
+                    </button>
+                    <button class="acct plain" id="acctOther" type="button">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#444746" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+                      別のアカウントを使用
+                    </button>
+                  </div>
+
+                  <form class="g-form" id="gForm">
+                    <input class="g-input" id="gEmail" type="email" placeholder="メールアドレス" autocomplete="off" />
+                    <input class="g-input" id="gName" type="text" placeholder="名前" autocomplete="off" />
+                    <button class="g-next" type="submit">次へ</button>
+                    <div style="clear:both"></div>
+                  </form>
+                </div>
+                <button class="btn btn-quiet" id="btnGoogleBack" type="button">← 登録画面に戻る</button>
+              </div>
+            </div>
+
+            <!-- 3: Contact email -->
+            <div class="screen" id="screen-email">
+              <div class="narrow">
+                <h2 class="screen-title">連絡用メール</h2>
+
+                <!-- Google route: prefilled -->
+                <div id="emailSame">
+                  <div class="email-display">
+                    <span class="addr" id="sameAddr">—</span>
+                  </div>
+                  <div class="stack" style="margin-top:16px">
+                    <button class="btn" id="btnSameEmail" type="button">続ける</button>
+                    <button class="btn btn-quiet" id="btnChangeEmail" type="button">変更</button>
+                  </div>
+                </div>
+
+                <!-- Input form -->
+                <form id="emailForm" style="display:none" novalidate>
+                  <input class="text-input" id="emailInput" type="email" placeholder="メールアドレス" autocomplete="off" aria-label="連絡用メール" />
+                  <div class="error-msg" id="emailError"></div>
+                  <div class="stack" style="margin-top:16px">
+                    <button class="btn" type="submit">コードを送る</button>
+                  </div>
+                </form>
+
+                <!-- Code entry -->
+                <div id="codeBlock" style="display:none">
+                  <div class="code-row" id="codeRow">
+                    <input class="code-box" inputmode="numeric" maxlength="1" aria-label="コード1桁目" />
+                    <input class="code-box" inputmode="numeric" maxlength="1" aria-label="コード2桁目" />
+                    <input class="code-box" inputmode="numeric" maxlength="1" aria-label="コード3桁目" />
+                    <input class="code-box" inputmode="numeric" maxlength="1" aria-label="コード4桁目" />
+                    <input class="code-box" inputmode="numeric" maxlength="1" aria-label="コード5桁目" />
+                    <input class="code-box" inputmode="numeric" maxlength="1" aria-label="コード6桁目" />
+                  </div>
+                  <div class="error-msg" id="codeError"></div>
+                  <div class="stack" style="margin-top:16px">
+                    <button class="btn" id="btnVerifyCode" type="button">確認</button>
+                    <button class="btn btn-quiet" id="btnResend" type="button">戻る</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4: Invite second method -->
+            <div class="screen" id="screen-invite">
+              <div class="narrow">
+                <!-- Passkey invite (after Google) -->
+                <div id="invitePasskey">
+                  <div>
+                    <h2 class="screen-title">パスキーを作る？</h2>
+                  </div>
+                  <div class="stack">
+                    <button class="btn" id="btnInvitePasskey" type="button">作る</button>
+                    <button class="btn btn-quiet" id="btnSkipPasskey" type="button">あとで</button>
+                  </div>
+                </div>
+
+                <!-- Google invite (after Passkey) -->
+                <div id="inviteGoogle" style="display:none">
+                  <div>
+                    <h2 class="screen-title">Googleも連携する？</h2>
+                  </div>
+                  <div class="stack">
+                    <button class="btn btn-google" id="btnInviteGoogle" type="button">
+                      <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.3 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.3 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
+                      Google を連携する
+                    </button>
+                    <button class="btn btn-quiet" id="btnSkipGoogle" type="button">あとで</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 5: Home -->
+            <div class="screen" id="screen-home">
+              <div style="max-width:520px;width:100%;margin:0 auto">
+                <div class="home-head">
+                  <span class="avatar-me" id="homeAvatar">あ</span>
+                  <span>
+                    <span style="font-weight:900;font-size:18px" id="homeGreeting">ようこそ</span><br />
+                    
+                  </span>
+                </div>
+
+                <div class="status-card">
+                  <div class="status-row">
+                    <span class="sr-icon">
+                      <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.3 6.1 29.3 4 24 4 13 4 4 13 4 24s9 20 20 20 20-9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 8 3l5.7-5.7C34.3 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
+                    </span>
+                    <span class="sr-main"><span class="sr-value">Google</span></span>
+                    <span class="badge" id="stGoogle">—</span>
+                  </div>
+                  <div class="status-row">
+                    <span class="sr-icon">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M9 8v2"/><path d="M15 8v2"/><path d="M12 8v4l-1.2 1.8"/><path d="M9.2 16.2c.9.8 4.7.8 5.6 0"/></svg>
+                    </span>
+                    <span class="sr-main"><span class="sr-value">パスキー</span></span>
+                    <span class="badge" id="stPasskey">—</span>
+                  </div>
+                  <div class="status-row">
+                    <span class="sr-icon">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+                    </span>
+                    <span class="sr-main"><span class="sr-value" id="stEmail">—</span></span>
+                    
+                  </div>
+                </div>
+
+                <div class="recovery-note ok" id="recoveryNote"></div>
+
+                <div class="home-actions">
+                  <button class="btn btn-ghost" id="btnRestart" type="button">最初から</button>
+                  <button class="btn" id="btnOtherRoute" type="button">別のルート</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Loading overlay -->
+            <div class="overlay" id="loadingOverlay">
+              <div class="spinner-card">
+                <div class="spinner"></div>
+                <p id="loadingText">認証しています…</p>
+                <small id="loadingSub" style="display:none"></small>
+              </div>
+            </div>
+
+            <!-- Passkey OS sheet -->
+            <div class="overlay" id="sheetOverlay">
+              <div class="sheet" id="sheetCard">
+                <span class="face">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M9 8v2"/><path d="M15 8v2"/><path d="M12 8v4l-1.2 1.8"/><path d="M9.2 16.2c.9.8 4.7.8 5.6 0"/></svg>
+                </span>
+                <h3 id="sheetTitle">Notte のパスキーを作成</h3>
+                
+                <button class="btn" id="btnSheetAuth" type="button">顔・指紋で認証する</button>
+                <button class="btn btn-quiet" id="btnSheetCancel" type="button">キャンセル</button>
+                <div class="sheet-status" id="sheetStatus"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        
+      </section>
+    </div>
+    <script>
+      (function(){
+        "use strict";
+        var $ = function(id){ return document.getElementById(id); };
+
+        var state = {};
+        var sheetCallback = null;
+        var googlePurpose = "signup"; // "signup" | "invite"
+
+        function resetState(){
+          state = {
+            route: null,          // "google" | "passkey"
+            google: false,
+            googleName: "",
+            googleEmail: "",
+            passkey: false,
+            email: "",
+            emailVerified: false,
+            sentCode: ""
+          };
+        }
+        resetState();
+
+        var EXPLAIN = {
+          start: { step: 1 },
+          google: { step: 2 },
+          passkey: { step: 2 },
+          emailSame: { step: 3 },
+          emailForm: { step: 3 },
+          invitePasskey: { step: 4 },
+          inviteGoogle: { step: 4 },
+          homeBoth: { step: 5 },
+          homeSingle: { step: 5 }
+        };
+
+        var URLS = {
+          "screen-start": "notte.example/signup",
+          "screen-google": "accounts.google.com — アカウントを選択",
+          "screen-email": "notte.example/signup/email",
+          "screen-invite": "notte.example/signup/almost-done",
+          "screen-home": "notte.example/home"
+        };
+
+        function setExplain(key){
+          var e = EXPLAIN[key];
+          if(!e) return;
+          var items = document.querySelectorAll("#steps li");
+          for(var i=0;i<items.length;i++){
+            var n = parseInt(items[i].getAttribute("data-step"),10);
+            items[i].classList.toggle("active", n === e.step);
+            items[i].classList.toggle("done", n < e.step);
+            var num = items[i].querySelector(".num");
+            num.textContent = n < e.step ? "✓" : String(n);
+          }
+        }
+
+        function showScreen(id){
+          var screens = document.querySelectorAll(".screen");
+          for(var i=0;i<screens.length;i++){ screens[i].classList.remove("on"); }
+          $(id).classList.add("on");
+          if(URLS[id]) $("urlBar").textContent = URLS[id];
+          window.scrollTo({top:0, behavior:"smooth"});
+        }
+
+        function showLoading(text, sub, ms, done){
+          $("loadingText").textContent = text;
+          $("loadingSub").textContent = sub;
+          $("loadingOverlay").classList.add("on");
+          setTimeout(function(){
+            $("loadingOverlay").classList.remove("on");
+            done();
+          }, ms);
+        }
+
+        function hideMail(){ $("mailToast").classList.remove("on"); }
+        function showMail(code){
+          $("mailCode").textContent = code;
+          $("mailToast").classList.add("on");
+        }
+
+        /* ---------- Passkey sheet ---------- */
+        function openSheet(callback){
+          sheetCallback = callback;
+          var card = $("sheetCard");
+          card.classList.remove("scanning","done");
+          $("sheetStatus").textContent = "";
+          $("btnSheetAuth").style.display = "";
+          $("btnSheetCancel").style.display = "";
+          $("sheetOverlay").classList.add("on");
+          setExplain("passkey");
+        }
+        function closeSheet(){
+          $("sheetOverlay").classList.remove("on");
+          sheetCallback = null;
+        }
+        $("btnSheetCancel").addEventListener("click", function(){
+          closeSheet();
+          if($("screen-invite").classList.contains("on")){
+            setExplain(state.route === "google" ? "invitePasskey" : "inviteGoogle");
+          } else if($("screen-start").classList.contains("on")){
+            setExplain("start");
+          }
+        });
+        $("btnSheetAuth").addEventListener("click", function(){
+          var card = $("sheetCard");
+          card.classList.add("scanning");
+          $("sheetStatus").textContent = "…";
+          $("btnSheetAuth").style.display = "none";
+          $("btnSheetCancel").style.display = "none";
+          setTimeout(function(){
+            card.classList.remove("scanning");
+            card.classList.add("done");
+            $("sheetStatus").textContent = "✓";
+            setTimeout(function(){
+              var cb = sheetCallback;
+              closeSheet();
+              if(cb) cb();
+            }, 650);
+          }, 1200);
+        });
+
+        /* ---------- Start ---------- */
+        $("btnGoogleStart").addEventListener("click", function(){
+          googlePurpose = "signup";
+          $("gForm").classList.remove("on");
+          showScreen("screen-google");
+          setExplain("google");
+        });
+        $("btnPasskeyStart").addEventListener("click", function(){
+          openSheet(function(){
+            state.route = "passkey";
+            state.passkey = true;
+            showLoading("仮登録中…", "", 800, function(){
+              setupEmailScreen();
+              showScreen("screen-email");
+            });
+          });
+        });
+        $("btnGoogleBack").addEventListener("click", function(){
+          if(googlePurpose === "invite"){
+            showScreen("screen-invite");
+            setExplain("inviteGoogle");
+          } else {
+            showScreen("screen-start");
+            setExplain("start");
+          }
+        });
+
+        /* ---------- Google chooser ---------- */
+        function chooseGoogle(name, email){
+          showLoading("…", "", 950, function(){
+            state.google = true;
+            state.googleName = name;
+            state.googleEmail = email;
+            if(googlePurpose === "invite"){
+              goHome();
+              return;
+            }
+            state.route = "google";
+            setupEmailScreen();
+            showScreen("screen-email");
+          });
+        }
+        var accts = document.querySelectorAll(".acct[data-gmail]");
+        for(var i=0;i<accts.length;i++){
+          accts[i].addEventListener("click", function(){
+            chooseGoogle(this.getAttribute("data-gname"), this.getAttribute("data-gmail"));
+          });
+        }
+        $("acctOther").addEventListener("click", function(){
+          $("gForm").classList.add("on");
+          $("gEmail").focus();
+        });
+        $("gForm").addEventListener("submit", function(ev){
+          ev.preventDefault();
+          var email = $("gEmail").value.trim();
+          var name = $("gName").value.trim();
+          if(!email || email.indexOf("@") < 1){ $("gEmail").focus(); return; }
+          if(!name) name = "ゲスト";
+          chooseGoogle(name, email);
+        });
+
+        /* ---------- Email step ---------- */
+        function setupEmailScreen(){
+          hideMail();
+          $("codeBlock").style.display = "none";
+          $("emailError").classList.remove("on");
+          $("codeError").classList.remove("on");
+          if(state.route === "google"){
+            $("emailSame").style.display = "";
+            $("emailForm").style.display = "none";
+            $("sameAddr").textContent = state.googleEmail;
+            setExplain("emailSame");
+          } else {
+            $("emailSame").style.display = "none";
+            $("emailForm").style.display = "";
+            $("emailInput").value = "";
+            setExplain("emailForm");
+          }
+        }
+        $("btnSameEmail").addEventListener("click", function(){
+          state.email = state.googleEmail;
+          state.emailVerified = true;
+          goInvite();
+        });
+        $("btnChangeEmail").addEventListener("click", function(){
+          $("emailSame").style.display = "none";
+          $("emailForm").style.display = "";
+          $("emailInput").value = "";
+          $("emailInput").focus();
+          setExplain("emailForm");
+        });
+
+        function validEmail(v){
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+        }
+        function sendCode(addr){
+          var code = String(Math.floor(100000 + Math.random()*900000));
+          state.sentCode = code;
+          state.email = addr;
+          $("emailForm").style.display = "none";
+          $("codeBlock").style.display = "";
+          var boxes = document.querySelectorAll(".code-box");
+          for(var i=0;i<boxes.length;i++) boxes[i].value = "";
+          $("codeError").classList.remove("on");
+          setTimeout(function(){ showMail(code); boxes[0].focus(); }, 500);
+        }
+        $("emailForm").addEventListener("submit", function(ev){
+          ev.preventDefault();
+          var v = $("emailInput").value.trim();
+          var err = $("emailError");
+          if(!validEmail(v)){
+            err.textContent = "メールアドレスの形式を確認してください。";
+            err.classList.add("on");
+            return;
+          }
+          err.classList.remove("on");
+          sendCode(v);
+        });
+
+        /* code boxes behaviour */
+        var boxes = document.querySelectorAll(".code-box");
+        boxes.forEach(function(box, idx){
+          box.addEventListener("input", function(){
+            box.value = box.value.replace(/\D/g,"").slice(0,1);
+            if(box.value && idx < boxes.length-1) boxes[idx+1].focus();
+          });
+          box.addEventListener("keydown", function(ev){
+            if(ev.key === "Backspace" && !box.value && idx > 0) boxes[idx-1].focus();
+          });
+          box.addEventListener("paste", function(ev){
+            ev.preventDefault();
+            var text = (ev.clipboardData || window.clipboardData).getData("text").replace(/\D/g,"").slice(0,6);
+            for(var j=0;j<boxes.length;j++) boxes[j].value = text[j] || "";
+            if(text.length) boxes[Math.min(text.length,5)].focus();
+          });
+        });
+        function enteredCode(){
+          var s = "";
+          boxes.forEach(function(b){ s += b.value; });
+          return s;
+        }
+        $("btnResend").addEventListener("click", function(){
+          hideMail();
+          $("codeBlock").style.display = "none";
+          if(state.route === "google" && !$("emailSame").style.display){
+            /* after changing once, stay in form mode */
+          }
+          $("emailForm").style.display = "";
+          $("emailInput").focus();
+        });
+        $("btnVerifyCode").addEventListener("click", function(){
+          var err = $("codeError");
+          if(enteredCode() === state.sentCode && state.sentCode){
+            err.classList.remove("on");
+            hideMail();
+            state.emailVerified = true;
+            showLoading("確認しました", "", 750, function(){ goInvite(); });
+          } else {
+            err.textContent = "コードが一致しません。";
+            err.classList.add("on");
+            $("codeRow").classList.remove("shake");
+            void $("codeRow").offsetWidth;
+            $("codeRow").classList.add("shake");
+          }
+        });
+        $("mailClose").addEventListener("click", hideMail);
+
+        /* ---------- Invite step ---------- */
+        function goInvite(){
+          if(state.route === "google"){
+            $("invitePasskey").style.display = "";
+            $("inviteGoogle").style.display = "none";
+            setExplain("invitePasskey");
+          } else {
+            $("invitePasskey").style.display = "none";
+            $("inviteGoogle").style.display = "";
+            setExplain("inviteGoogle");
+          }
+          showScreen("screen-invite");
+        }
+        $("btnInvitePasskey").addEventListener("click", function(){
+          openSheet(function(){
+            state.passkey = true;
+            goHome();
+          });
+          /* sheet explain overrides; restore invite context title after close is handled in goHome */
+        });
+        $("btnSkipPasskey").addEventListener("click", goHome);
+        $("btnInviteGoogle").addEventListener("click", function(){
+          googlePurpose = "invite";
+          $("gForm").classList.remove("on");
+          showScreen("screen-google");
+          setExplain("google");
+        });
+        $("btnSkipGoogle").addEventListener("click", goHome);
+
+        /* ---------- Home ---------- */
+        function setBadge(el, ok, okText, ngText){
+          el.textContent = ok ? okText : ngText;
+          el.className = "badge " + (ok ? "badge-teal" : "badge-gray");
+        }
+        function goHome(){
+          var both = state.google && state.passkey;
+          var name = state.googleName || "あなた";
+          $("homeGreeting").textContent = state.googleName ? ("ようこそ、" + state.googleName + " さん") : "ようこそ";
+          $("homeAvatar").textContent = state.googleName ? state.googleName.charAt(state.googleName.length-1) : "あ";
+          setBadge($("stGoogle"), state.google, "連携済み", "未連携");
+          setBadge($("stPasskey"), state.passkey, "あり", "なし");
+          $("stEmail").textContent = state.email || "—";
+          var note = $("recoveryNote");
+          if(both){
+            note.className = "recovery-note ok";
+            note.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.7 9a.6.6 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .7-1c2.4-.7 4.6-1.7 6.6-3a1 1 0 0 1 1.4 0c2 1.3 4.2 2.3 6.6 3a1 1 0 0 1 .7 1z"/><path d="m9 12 2 2 4-4"/></svg><span>入口2つ — 片方を失くしても作り直せます。</span>';
+            setExplain("homeBoth");
+          } else {
+            var which = state.google ? "Google" : "パスキー";
+            note.className = "recovery-note warn";
+            note.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18.4-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-2.6Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span>入口は ' + which + ' のみ — 失くすと<b>復旧できません</b>。</span>';
+            setExplain("homeSingle");
+          }
+          showScreen("screen-home");
+        }
+
+        /* ---------- Restart ---------- */
+        function restart(preferRoute){
+          resetState();
+          hideMail();
+          googlePurpose = "signup";
+          $("gForm").classList.remove("on");
+          showScreen("screen-start");
+          setExplain("start");
+          if(preferRoute === "passkey"){
+            setTimeout(function(){ $("btnPasskeyStart").click(); }, 250);
+          } else if(preferRoute === "google"){
+            setTimeout(function(){ $("btnGoogleStart").click(); }, 250);
+          }
+        }
+        $("btnRestart").addEventListener("click", function(){ restart(); });
+        $("railReset").addEventListener("click", function(){ restart(); });
+        $("btnOtherRoute").addEventListener("click", function(){
+          restart(state.route === "google" ? "passkey" : "google");
+        });
+
+        setExplain("start");
+      })();
+    </script>
+  </body>
+</html>
