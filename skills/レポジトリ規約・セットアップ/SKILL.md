@@ -18,10 +18,10 @@ metadata:
 
 ### 骨格と雛形
 
-- 新規リポジトリには`templates/`の雛形一式が配置され、プレースホルダが埋まっている。
-- 雛形の`justfile`とCIの中身はプロジェクトの言語・スタックに合わせて書き換えられ、recipe名とjob構成は規約に従っている。
+- 新規リポジトリには`templates/`の雛形一式を配置し、プレースホルダを埋める。
+- 雛形の`justfile`とCIの中身はプロジェクトの言語・スタックに合わせて書き換え、recipe名とjob構成は規約に従わせる。
   雛形は言語・スタックを固定していないためである。
-- 次のディレクトリ骨格がある。
+- 次のディレクトリ骨格を用意する。
   雛形に含まれないため、配置とあわせて作る。
 
   ```text
@@ -34,58 +34,58 @@ metadata:
   infra/       製品のデプロイに必要な構成
   ```
 
-- `AGENTS.md`が、対象リポジトリの事実に基づいて書かれている。
+- `AGENTS.md`は、対象リポジトリの事実に基づいて書く。
   監査で必須のファイルだが雛形を持たないためである。
 
 ### Gitフック
 
-- `core.hooksPath`が`.githooks`に設定され、`commit-msg`・`pre-commit`・`pre-push`が実行可能な状態で存在する。
+- `core.hooksPath`を`.githooks`に設定し、`commit-msg`・`pre-commit`・`pre-push`を実行可能な状態で置く。
   `core.hooksPath`はクローンごとのローカル設定で、クローンでは引き継がれないためである。
-- `commit-msg`は雛形と同一内容である。
+- `commit-msg`は雛形と同一内容にする。
   規約を変えるときは雛形を直し、各リポジトリへは雛形をそのまま上書きして配る。
-- `commit-msg`の検査で落ちたときは、メッセージ側が直され、フック側は元の検査内容を保っている。
+- `commit-msg`の検査で落ちたときは、メッセージ側を直し、フック側は元の検査内容を保つ。
 - `pre-commit`は、変更パスに応じたアプリ検査に加えて、`just repo-checks`を無条件に実行する。
   リポジトリ横断の不変条件はどのアプリにも属さず、パス条件では選ばれないためである。
 
 ### ツールチェーン
 
-- ツールチェーンの版数は`mise.toml`だけで宣言され、具体的な版数で固定されている（`latest`や`stable`ではない）。
-- CIは`jdx/mise-action`で同じ`mise.toml`を読み、workflowの`env`や`with:`には版数も`*_VERSION`も無く、setup系actionも並んでいない。
+- ツールチェーンの版数は`mise.toml`だけで宣言し、具体的な版数で固定する（`latest`や`stable`は使わない）。
+- CIは`jdx/mise-action`で同じ`mise.toml`を読み、workflowの`env`や`with:`には版数も`*_VERSION`も書かず、setup系actionも置かない。
   同じ版数が2箇所にあると、一致を規約で義務付けても食い違える場所が残るためである。
 
 ### justfile
 
-- recipeは`{app}-{action}`で名付けられ、`[group]`でアプリごとにまとまっている。
-- アプリごとに`{app}-check`と`{app}-fix`が対である。
-  `check`はファイルを書き換えずにlint・format検査・型検査を行い、CIと`pre-commit`から呼ばれる。
+- recipeは`{app}-{action}`で名付け、`[group]`でアプリごとにまとめる。
+- アプリごとに`{app}-check`と`{app}-fix`を対で用意する。
+  `check`はファイルを書き換えずにlint・format検査・型検査を行い、CIと`pre-commit`から呼ぶ。
   `fix`は自動修正できる処理をすべて行う。
-- 外部に見せないrecipeは`[private]`を持ち、名前が`_`で始まる。
-- 引数にはdefaultがあり、引数が複雑になる場合はrecipeが分かれている。
-- `repo-checks`には、そのリポジトリで常に成立すべき条件だけがあり、特定パスの変更時だけ要る検査は各アプリの`check`にある。
-- 複数のCIを並列に走らせるrecipeは、ジョブごとのPIDを個別に`wait`している。
+- 外部に見せないrecipeには`[private]`を付け、名前を`_`で始める。
+- 引数にはdefaultを設け、引数が複雑になる場合はrecipeを分ける。
+- `repo-checks`には、そのリポジトリで常に成立すべき条件だけを置き、特定パスの変更時だけ要る検査は各アプリの`check`に置く。
+- 複数のCIを並列に走らせるrecipeは、ジョブごとのPIDを個別に`wait`する。
   引数なしの`wait`は常に0で終わり、どれかが落ちても成功に見えるためである。
-- bashのshebang recipeは、本文で`set -euo pipefail`を設定している。
+- bashのshebang recipeは、本文で`set -euo pipefail`を設定する。
   `set shell`はshebang recipeに届かず、途中で失敗したコマンドが見過ごされるためである。
-- `just --list`に出る各recipeの説明は、それだけで意味の通る一行である。
-  commentが複数行あるrecipeは`[doc]`で一行の説明を明示しており、commentは理由の記録として残っている。
+- `just --list`に出る各recipeの説明は、それだけで意味の通る一行にする。
+  commentが複数行あるrecipeは`[doc]`で一行の説明を明示し、commentは理由の記録として残す。
   `just --list`は直前のcomment blockの最終行だけを表示し、コマンドを発見する唯一の面だからである。
 
 ### CI
 
-- jobはアプリごとの`{app}-ci`と`repo-checks`に分かれ、互いに依存していない。
+- jobはアプリごとの`{app}-ci`と`repo-checks`に分け、互いに依存させない。
 - stepはコマンドを直接持たず、justのrecipeを呼ぶ。
   手元の`just`でCIと同じ検査を再現できるようにするためである。
-- 外部actionはタグで固定されている。
-- 各jobが`timeout-minutes`を持つ。
-- 依存のcacheはlockfileのhashを鍵にし、`concurrency`で同じbranchの重複実行が取り消される。
-- Workers Buildsでjustを入れる場合は、`install.sh`に`--tag`で版数が渡されている。
-- 主な担保は`just ci-local`で、リモートCIは保険である。
-  そのため、miseがツールを取得する分の立ち上がりの遅さは許容されている。
+- 外部actionはタグで固定する。
+- 各jobに`timeout-minutes`を設定する。
+- 依存のcacheはlockfileのhashを鍵にし、`concurrency`で同じbranchの重複実行を取り消す。
+- Workers Buildsでjustを入れる場合は、`install.sh`に`--tag`で版数を渡す。
+- 主な担保は`just ci-local`とし、リモートCIは保険と位置づける。
+  そのため、miseがツールを取得する分の立ち上がりの遅さは許容する。
 
 ### 監査
 
-- 既存リポジトリの監査では、`scripts/audit.sh`の機械検査と、それが出力するガイドの全項目のエージェント検査が、終了statusにかかわらず両方済んでいる。
-- 機械検査とエージェント検査の結果が一つの報告に統合されている。
+- 既存リポジトリの監査では、`scripts/audit.sh`の機械検査と、それが出力するガイドの全項目のエージェント検査を、終了statusにかかわらず両方行う。
+- 機械検査とエージェント検査の結果は一つの報告に統合する。
 
 ## 守る順序
 
