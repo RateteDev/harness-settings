@@ -81,7 +81,7 @@ recipeの説明は`just --list`に出る一行である。
 ### 既存リポジトリの監査
 
 次を実行する。
-以下の`SKILL_ROOT`はskill toolが返すBase directoryである。
+以下の`SKILL_ROOT`は、このスキルを読み込んだときにハーネスが示すスキルのディレクトリである。
 
 ```sh
 "${SKILL_ROOT}/scripts/audit.sh" --repo <path>

@@ -15,7 +15,7 @@ metadata:
 
 ## 進め方
 
-起点は公式Sidebar例（https://startingpointui.com/components/sidebar）とし、複製を持たず都度webfetchで取得する。
+起点は公式Sidebar例（https://startingpointui.com/components/sidebar）とし、複製を持たず都度Webから取得する。
 左サイドバーとダミー本文を持つ単体HTMLを対象に、取得した例へ次の差分を適用する。
 
 ### 適用する差分

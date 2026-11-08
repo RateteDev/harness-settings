@@ -30,7 +30,7 @@ metadata:
 ### マシン固有の情報
 
 マシン固有の運用情報（稼働中のunit、絶対パス、端末、ローカルツール）は、レポへコミットせず、プロジェクト直下の`AGENTS.md.local`へ書く。
-`AGENTS.md.local`はOpenCodeが自動で読み、`.gitignore`で除外する。
+`AGENTS.md.local`はハーネスのフックがセッションの冒頭へ注入し、`.gitignore`で除外する。
 レポ側は`AGENTS.md.local`を参照し、実運用の情報を置かない。
 形式は[実例](examples/my-r2.AGENTS.md.local)に揃える。
 
