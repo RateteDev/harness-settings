@@ -18,7 +18,7 @@ metadata:
 
 ### ツール
 
-- プロジェクトのツールは次の表のとおりである。
+- ツールは次の表のものを使う。
 
   | 用途 | 使うもの |
   |---|---|
@@ -27,12 +27,12 @@ metadata:
   | Test | Bun組み込みの`bun:test` |
   | Logger | pino（開発時の整形には`pino-pretty`をdev依存に入れる） |
 
-- `tsconfig.json`の`compilerOptions.types`に`"bun-types"`が入っている。
+- `tsconfig.json`の`compilerOptions.types`に`"bun-types"`を入れる。
   `bun:test`の型は`@types/bun`に含まれるが、これが無いと`describe`・`expect`・`test`などが型エラーになるためである。
 
 ### package.json
 
-- `bun init`などが生成した`package.json`には`scripts`が無い。
+- `bun init`などが生成した`package.json`の`scripts`は削除する。
   開発コマンドはルートの`justfile`に集約しており、各packageに置くと二重管理になるためである。
-- 残っているのは、`name`・`version`・`type`・`dependencies`・`devDependencies`など、実際に機能するフィールドだけである。
-- 公開しないpackageには`main`・`module`・`keywords`・`author`・`license`・`description`が無く、説明はREADMEにある。
+- `package.json`には、`name`・`version`・`type`・`dependencies`・`devDependencies`など、実際に機能するフィールドだけを残す。
+- 公開しないpackageには`main`・`module`・`keywords`・`author`・`license`・`description`は置かず、説明はREADMEに書く。
