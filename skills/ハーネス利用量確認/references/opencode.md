@@ -1,38 +1,43 @@
-# OpenCode Go
+# OpenCode Go利用ガイド
 
-## 知りたいことに応じて見る場所
+## 参照先一覧
 
-| 知りたいこと | 見る場所 |
+| 目的 | 参照先 / 手順 |
 | --- | --- |
-| 共通枠の残量とリセット時刻 | `scripts/opencode-go-usage.sh` |
-| モデル別のトークン単価・月間上限・推定リクエスト | `https://raw.githubusercontent.com/anomalyco/opencode/dev/packages/web/src/content/docs/go.mdx` |
-| モデルの重み | 同ファイルのMonthly limit列から `60 ÷ 値` |
-| 正しいモデルID | `GET https://opencode.ai/zen/go/v1/models` |
-| 重みのDB実値（使ったモデルのみ） | `https://opencode.ai/workspace/<id>/go` の内訳表Quota列 |
+| 共通枠の残量・リセット日時 | `scripts/opencode-go-usage.sh` を実行 |
+| モデル別の単価・上限 | [公式ドキュメント (go.mdx)](https://raw.githubusercontent.com/anomalyco/opencode/dev/packages/web/src/content/docs/go.mdx) |
+| モデルの消費重み（計算値） | 上記docsのMonthly limit列より算出: `60 ÷ 値` |
+| 有効なモデルID一覧 | `GET https://opencode.ai/zen/go/v1/models` |
+| モデルの消費重み（実績値） | Webコンソール（`https://opencode.ai/workspace/<id>/go`）の内訳表Quota列 |
 
-スクリプトは `GET https://opencode.ai/zen/go/v1/usage` を呼び出す。
+---
+
+## 残量確認スクリプトの実行
+
+内部で未公開エンドポイント `GET https://opencode.ai/zen/go/v1/usage` を呼び出します。
 
 ```sh
-OPENCODE_GO_API_KEY="$OPENCODE_GO_API_KEY" scripts/opencode-go-usage.sh
+OPENCODE_GO_API_KEY="<APIキー>" scripts/opencode-go-usage.sh
 ```
 
-キーは対話的に渡すか、コマンド実行時だけ `OPENCODE_GO_API_KEY` を設定する。
-設定ファイル、シェル履歴、スキル、チャットへキーを書かない。
-このエンドポイントは公開APIリファレンスに無く、応答が変わったらコンソールで確認する。
+### APIキーの取り扱い（厳守）
+- APIキーはコマンド実行時のみ環境変数で渡すか、対話入力してください。
+- **ファイル、シェル履歴、スキル定義、チャットログへの平文保存は禁止**です。
+- エンドポイントの応答仕様が変わった場合は、Webコンソール側を確認してください。
 
-## 背景
+---
 
-利用量はアカウント共通の3ウィンドウ（5時間・週・月）に1組だけあり、次の重みで加重されて消費される。
-会計と上限判定も共通の3列と3上限だけで行われ、モデル別のゲートは無い。
+## クォータ（利用枠）の仕組みと注意点
 
-```
-重み = プランの月間上限 ÷ モデルの月間上限
-quota消費 = ドル消費 × 重み
-```
+### 1. 共有プール方式
+- 利用枠はモデル個別ではなく、**アカウント全体で1つの枠（5時間・週間・月間の3ウィンドウ）を共有**します。
+- 各モデルの利用量は「重み」で換算されて共通枠を消費します。
+  - `モデルの重み = プランの月間上限 ($60) ÷ モデルの月間上限`
+  - `消費クォータ = ドル消費額 × 重み`
+- コンソール上のモデル別上限表示は、共通上限を重みで逆算した「見かけ上の値」です。
 
-コンソールのモデル別 `used / quota` 行は「共通上限 ÷ 重み」の表示専用値で、docsの月間上限列はこれに対応するため、docsからも重みが導ける。
-モデル名は数日で入れ替わるため、一覧は必ずdocsから取る。
-
-`/v1/usage` の `percent` は共通枠の加算済み消費率で、`?model=` は無視される。
-`monthly` は月初ではなく請求サイクル基準で、`resetsAt` がそのままリセット時刻になる。
-docsは「モデルごとに独立した上限」と書いているが実装は共有1箱で、`multiplier` / `weight` の語はdocsに一度も登場しない。
+### 2. APIとドキュメントの仕様差
+- **共通枠の消費率**: `/v1/usage` の `percent` はアカウント全体の積算消費率です（`?model=` パラメータは無効）。
+- **リセット時刻**: `monthly` はカレンダーの月初ではなく「請求サイクル基準」です。
+  `resetsAt` の値に従ってください。
+- **モデル名の確認**: モデルの入れ替わりが早いため、利用可能なモデルは都度ドキュメントまたは `/v1/models` で確認してください。
