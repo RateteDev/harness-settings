@@ -6,39 +6,32 @@ metadata:
   user-review: false
 ---
 
-# TypeScript開発規約
+# TypeScript規約
 
-TypeScriptの新規作成・実装時は、以下のツールチェーンおよび設定に従ってください。
+## このスキルの目的
 
-## 1. 標準ツールスタック
+ツール選定をその場の判断で変えると、プロジェクトごとに設定と依存が分かれ、実行環境やテストの挙動も揃わない。
+ランタイムからパッケージ初期化までを固定し、同じ選定を繰り返さずに済むようにする。
 
-独自判断でのツール追加・変更は行わず、以下に統一します。
+## あるべき状態
 
-| 用途 | 採用ツール | 備考 |
-|---|---|---|
-| ランタイム / パッケージ管理 / バンドル | **Bun** | 全面採用 |
-| Lint / Formatter | **Biome** | 依存は `@biomejs/biome` のみ、設定は `biome.json` に集約 |
-| テスト | **`bun:test`** | Bun組み込み機能を使用 |
-| ロガー | **Pino** | 開発用の整形ツールとして `pino-pretty` をdevDependenciesに追加 |
+### ツール
 
-### 型定義の設定 (`tsconfig.json`)
-`bun:test` のグローバル関数（`test`, `expect`, `describe` など）を型エラーなく扱うため、`tsconfig.json` に以下を明記してください。
+- プロジェクトのツールは次の表のとおりである。
 
-```jsonc
-{
-  "compilerOptions": {
-    "types": ["bun-types"]
-  }
-}
-```
+  | 用途 | 使うもの |
+  |---|---|
+  | Runtime・パッケージ管理・バンドル | Bun |
+  | Lint / Format | Biome（設定は`biome.json`1つ、依存は`@biomejs/biome`のみ） |
+  | Test | Bun組み込みの`bun:test` |
+  | Logger | pino（開発時の整形には`pino-pretty`をdev依存に入れる） |
 
-## 2. package.jsonの最小化ルール
+- `tsconfig.json`の`compilerOptions.types`に`"bun-types"`が入っている。
+  `bun:test`の型は`@types/bun`に含まれるが、これが無いと`describe`・`expect`・`test`などが型エラーになるためである。
 
-`bun init` などで生成された `package.json` は、不要なフィールドを削除して最小限に保ちます。
+### package.json
 
-- **`scripts` は作成しない（全削除）**: コマンド管理はルートの `justfile` に集約するため。
-- **公開しないパッケージの不要フィールドを削除**:
-  - `main`, `module`, `keywords`, `author`, `license` は削除する。
-  - 説明文は `README.md` に記載するため、`description` も削除する。
-- **残すべき必須フィールド**:
-  - `name`, `version`, `type` (`"module"`), `dependencies`, `devDependencies` のみ。
+- `bun init`などが生成した`package.json`には`scripts`が無い。
+  開発コマンドはルートの`justfile`に集約しており、各packageに置くと二重管理になるためである。
+- 残っているのは、`name`・`version`・`type`・`dependencies`・`devDependencies`など、実際に機能するフィールドだけである。
+- 公開しないpackageには`main`・`module`・`keywords`・`author`・`license`・`description`が無く、説明はREADMEにある。
