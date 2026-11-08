@@ -1,6 +1,6 @@
 ---
 name: エージェントアーカイブ
-description: agent-archiveでエージェント会話をアーカイブまたは抽出する際に使う。
+description: 過去のエージェント会話をagent-archiveでアーカイブ・抽出するときに使う。セッションIDや共有URLを示して過去の会話を読む・残す依頼が対象。
 metadata:
   user-review: false
 ---

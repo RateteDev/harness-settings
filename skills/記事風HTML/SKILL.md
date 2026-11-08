@@ -1,7 +1,7 @@
 ---
 name: 記事風HTML
 description: |
-  MD/MDXを読みやすい記事styleの自己完結HTMLへ変換し、Linux host上で表示を検証する。
+  MD/MDXを読みやすい記事styleの自己完結HTMLへ変換し、Linux host上で表示を検証する。MD/MDXを読みやすい形で見たい・人へ渡したい依頼で使う。
 metadata:
   user-review: false
 ---
