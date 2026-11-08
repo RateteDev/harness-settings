@@ -7,33 +7,32 @@ metadata:
 
 # OSS公開
 
-## このスキルの目的
+## 目的
+公開後の取り消しが困難な「機密情報・ライセンス侵害・環境再現性」のリスクを未然に防ぎ、所定のステップに沿って安全にリポジトリを公開・リリースする。
 
-公開は取り消しにくく、秘密情報・権利・再現性の問題は後から直しにくい。
-段階を公開前チェックからリリースまで固定し、各段階の規則と見本に沿って確認と作業を進める。
+## 実行フロー
+以下の順序で作業を進めること。
+各ステップの詳細はリンク先の仕様に従う。
 
-## 進め方
+1. **公開前チェック**: [references/preflight.md](references/preflight.md)
+   - 機密情報、ライセンス、動作再現性の事前確認。
+2. **README整備**: [references/readme.md](references/readme.md)
+   - 必要な項目を網羅したREADMEの作成・更新。
+3. **リポジトリ公開**: [references/publish.md](references/publish.md)
+   - 可視性（Public）の変更とリポジトリ設定。
+4. **リリース**: [references/release.md](references/release.md)
+   - タグ打ちおよびリリースノートの作成。
 
-次の段階をこの順で行う。
-定義の無い作業をユーザーが求めた場合は、作業に入る前に本スキルへ規則を追加する。
+※ READMEおよびリリースノートの書式・トーンは [references/output-example.md](references/output-example.md) を基準とし、作成後に必ず見本と照合すること。
 
-### 段階
+---
 
-1. 公開前チェック — [references/preflight.md](references/preflight.md)
-2. README — [references/readme.md](references/readme.md)
-3. 公開 — [references/publish.md](references/publish.md)
-4. リリース — [references/release.md](references/release.md)
+## 共通ルール
 
-READMEとリリースノートの仕上がりは [references/output-example.md](references/output-example.md) の見本に合わせる。
-書き終えたら見本と並べて点検する。
-
-### 共通規則
-
-- 本文の既定言語は日本語とし、ユーザーから指定があった場合だけ別の言語で書く。
-- 秘密情報を検出しても、値そのものを出力せず、場所と種類だけを報告する。
-- 実アカウントや実機での確認はエージェントが実行できないため、ユーザーへ依頼する。
-
-### Pages
-
-Pagesで公開するコンテンツがまだ無いため、Pagesの段階は本スキルに定義していない。
-ユーザーからPagesの公開を求められた場合は、作業に入る前に本スキルへPagesの規則を追加し、`references/pages.md`として段階を定義する。
+- **使用言語**: 原則として**日本語**を使用する（ユーザーから明示的な指定がある場合を除く）。
+- **機密情報の保護**: APIキーやパスワードなどを検出した場合、**値そのものは絶対に出力せず**、「該当ファイル・行数」と「種別（例: AWS Secret Key）」のみを報告する。
+- **実環境での確認**: エージェント自身で実行できない認証や実機テストは、手順を整理してユーザーへ実行を依頼する。
+- **未定義のタスク**:
+  - 本フローに含まれない作業を求められた場合、作業へ入る前に本ファイル（スキル定義）へルールを追記してユーザーの承認を得ること。
+  - **GitHub Pagesの公開**: 現状は対象外。
+    依頼があった場合は `references/pages.md` を作成・定義した上で作業に着手する。
