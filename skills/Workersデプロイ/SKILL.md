@@ -8,50 +8,36 @@ metadata:
 
 # Workersデプロイ
 
-## このスキルの目的
+## 目的
 
-Git pushをそのままProductionへ反映すると、検証前の変更が利用者へ届き、Cloudflareの書き込み認証情報を端末やGitHubへ置く必要も生じる。
-Versionの作成とPromoteを分離し、検証済みVersionだけを反映できる状態を作る。
+Git pushと本番反映（Promote）を分離し、Preview URLで動作確認したVersionのみを安全にProductionへ公開する。
+また、開発端末やGitHub ActionsにCloudflareの書き込み権限を持たせないセキュアな構成を維持する。
 
-## 進め方
+## 役割分担
 
-永続アカウントのCloudflare Workersを、Git pushとProduction反映を分離して公開する。
+| 実行場所 | 役割 | Cloudflare認証情報 |
+|---|---|---|
+| 開発端末 | 認証不要のdry run・ローカル開発 | 持たせない |
+| GitHub Actions | lint・test・型チェック | 持たせない |
+| Workers Builds | Version作成（upload）とPreview更新 | Cloudflare側で完結 |
+| ユーザー（Dashboard） | ProductionへのPromote、ロールバック | 各自のアカウント権限 |
 
-### 構成
+## 運用ルール
 
-| 実行場所 | 担う操作 |
-|---|---|
-| 開発端末 | 認証不要のdry runだけ。Cloudflare認証情報を置かない |
-| GitHub Actions | Cloudflare認証が不要なlint・test・build。認証情報は渡さない |
-| Workers Builds | Version uploadとPreview aliasの更新。認証情報はこの経路に閉じる |
-| ユーザー（Dashboard） | Production Promote、rollback、例外的な管理操作 |
+### 必須事項 (DO)
+- **Version uploadの徹底**: デプロイコマンドは `wrangler versions upload --preview-alias preview` 相当とし、Version作成とPreview更新にとどめる。
+- **Version IDによる照合**: コミット、ビルド、Preview、Promote対象はすべてVersion IDで突き合わせる。
+- **設定変更の分離**: Storage（KV/D1/R2）、Secret、Trigger、Durable Object MigrationはVersion管理の対象外となるため、コード変更とは切り離して個別に扱う。
 
-### 分離の原則
+### 禁止事項 (DO NOT)
+- **`wrangler deploy` の実行禁止**: 即座に本番トラフィックが切り替わるため、本番ブランチであっても使用しない（初回Worker作成時など、影響を確認済みの例外を除く）。
+- **エージェントによる本番反映の禁止**: ProductionへのPromoteやロールバックは、必ずユーザー自身がCloudflare Dashboardから手動で実行する。
+- **Preview検証のスキップ禁止**: トラブル時でもPreviewを経由しない直接反映は行わない。
+  例外が必要な場合は必ずユーザーの事前承認を得る。
 
-- pushしてもProductionは変わらない。
-  deploy commandは`wrangler versions upload --preview-alias preview`相当とし、Versionを作るだけでtrafficを流さない
-- push（エージェント）とPromote（ユーザー）が分かれるため、検証済みVersionだけがProductionへ上がる
-- Cloudflare認証情報が端末とGitHubに存在しない。
-  書き込み権限を持つ実行面をCloudflare側へ限定する
+## 設定例 (Workers Builds)
 
-### 規則
-
-- Production branchでも`wrangler deploy`を使わない。
-  即座に100%のtrafficを流す
-- エージェントはProduction trafficを変更しない。
-  PromoteとrollbackはユーザーがDashboardで行う
-- 失敗時もPreview経路を迂回しない。
-  例外は影響をユーザーへ提示して個別に承認を得る
-- Workerの初回作成だけは`wrangler deploy`相当が必要になり得る。
-  Dashboardからの作成など、影響を確認した経路で行う
-- storage・secret・trigger・Durable Object migrationの変更はVersionに含まれない。
-  rollbackやPreview検証はcode変更にしか効かないと考え、data migrationは別作業として扱う
-- Version IDでcommit・build・Preview・Promote対象を照合する
-
-### 例
-
-Workers Buildsのbuild commandとdeploy commandの例である。
-実値は対象リポジトリの正本に従う。
+リポジトリ構成や使用パッケージマネージャーに応じて適宜調整してください。
 
 ```sh
 # build command
