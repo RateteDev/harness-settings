@@ -4,6 +4,7 @@ description: |
   CSSの作成・改修・リファクタリングで従う構造化規約。Scope（Global / Local）と Role（Tokens / Structure / Design）の2軸、@layerによるRole表現、テーマToken、所有者単位のファイル分割、静的検査で強制する規則の範囲を定める。
 metadata:
   user-review: false
+  labels: [規約]
 ---
 
 # CSS構造規約

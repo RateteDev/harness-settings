@@ -6,6 +6,7 @@ description: |
   設計判断が生じたら、まずこの規約の契機に照らしてADR化を提案する。
 metadata:
   user-review: false
+  labels: [規約]
 ---
 
 # ADR規約

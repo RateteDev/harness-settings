@@ -3,6 +3,7 @@ name: 最速プレビュー
 description: UIを作る・変える依頼で画面・レイアウト・部品の見た目をできるだけ早く見せ、方向性やUI構成を決めたいときに使う。
 metadata:
   user-review: false
+  labels: [考え方]
 ---
 
 # 最速プレビュー

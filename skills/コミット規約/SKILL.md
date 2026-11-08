@@ -4,6 +4,7 @@ description: |
   コミットメッセージを書くときに従う件名フォーマットと本文構成の規約。通常コミットとマージコミットの両方を対象とする。
 metadata:
   user-review: false
+  labels: [規約]
 ---
 
 # コミット規約

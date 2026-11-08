@@ -3,6 +3,7 @@ name: エージェントアーカイブ
 description: 過去のエージェント会話をagent-archiveでアーカイブ・抽出するときに使う。セッションIDや共有URLを示して過去の会話を読む・残す依頼が対象。
 metadata:
   user-review: false
+  labels: [使い方]
 ---
 
 # エージェントアーカイブ

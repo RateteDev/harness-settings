@@ -3,6 +3,7 @@ name: MyR2
 description: R2バケットのファイル操作、ハッシュ比較、保護・非表示・タグの管理、MyR2アプリのリンク案内と一時URL発行をmy-r2で行う。R2に関する操作を依頼されたときに使う。
 metadata:
   user-review: false
+  labels: [使い方]
 ---
 
 # MyR2
