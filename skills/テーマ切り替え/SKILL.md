@@ -5,6 +5,7 @@ description: |
   初期表示のちらつき防止、テーマの保存と復元、アイコンとラベルの更新を扱う。
 metadata:
   user-review: false
+  labels: [規約]
 ---
 
 # テーマ切り替え

@@ -4,6 +4,7 @@ description: |
   TypeScriptのコードを書くとき、TSプロジェクトを立ち上げるときに従う規約。ランタイム、lint/format、ロガー、パッケージ初期化を定める。
 metadata:
   user-review: false
+  labels: [規約]
 ---
 
 # TypeScript規約

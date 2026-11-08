@@ -3,6 +3,7 @@ name: OSS公開
 description: リポジトリをOSSとして公開するときに使う。public化、OSS化、公開準備の依頼で使い、秘密情報・端末情報、権利関係、再現性の公開前チェックと、README形式の確認、公開操作とリリースを扱う。
 metadata:
   user-review: false
+  labels: [規約]
 ---
 
 # OSS公開

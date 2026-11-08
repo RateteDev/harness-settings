@@ -3,6 +3,7 @@ name: ハーネス利用量確認
 description: Claude Code、Codex/ChatGPTまたはOpenCodeの現在のクォータ、リセット時刻、トークン使用量、推定コストを、認証情報を晒さずに確認する。残りの利用枠や使用量、コストを尋ねられたときに使う。
 metadata:
   user-review: false
+  labels: [使い方]
 ---
 
 # ハーネス利用量確認

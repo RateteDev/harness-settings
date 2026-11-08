@@ -3,6 +3,7 @@ name: AGENTS.md規約
 description: リポジトリの`AGENTS.md`とマシン固有の`AGENTS.md.local`の書き方規約。指示書の作成・編集や、環境の変化に伴う常時指示の修正で使う。
 metadata:
   user-review: false
+  labels: [規約]
 ---
 
 # AGENTS.md規約
