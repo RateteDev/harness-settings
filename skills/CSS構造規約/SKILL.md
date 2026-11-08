@@ -60,7 +60,7 @@ RoleはCSS標準の `@layer` で表現します。
 @layer tokens, structure, design;
 ```
 
-この順序はアプリケーション全体で一度だけ宣言し、変更しません。
+Roleと `@layer` はこの3つに限り、この順序はアプリケーション全体で一度だけ宣言し、変更しません。
 
 ### Structure / Designの契約
 
@@ -162,14 +162,17 @@ styles/
 
 1. 変更対象の所有者を特定する。
 2. GlobalかLocalかを決める。
+   Localの問題はLocalの所有者ファイルで解決する。
 3. LocalならPageかComponentかを、所有者と再利用性で決める。
 4. 既存の所有者ファイルを優先し、不必要にCSSファイルを増やさない。
 5. 各宣言をTokens / Structure / Designへ分類する。
 6. Structure / Designで迷ったら `references/classification.md` の削除テストを使う。
 7. それでも迷う場合はStructureへ置く。
-8. 別Componentの内部をセレクタで直接変更しない。
-9. 状態や機能をCSSだけで無理に表現せず、HTML / JS / フレームワーク側の責務を確認する。
-10. 変更後にリポジトリ既定のLintとテストを実行する。
+8. PageやComponentから別Componentの内部を変えたいときは、そのComponentの所有者ファイルで変更する。
+9. セレクタは対象に意味のあるclassを付けて当て、DOM階層に依存させない。
+10. 詳細度や順序の競合は、所有者とRoleの見直しで解決する。
+11. 状態や機能をCSSだけで無理に表現せず、HTML / JS / フレームワーク側の責務を確認する。
+12. 変更後にリポジトリ既定のLintとテストを実行する。
 
 ### 強制される規則と判断する規則
 
@@ -224,18 +227,3 @@ CSSは状態の見た目を表現できますが、アプリケーション状�
 - **具体例や境界例を見る**: [references/examples.md](references/examples.md)
 
 必要なリファレンスだけを読み、すべてを毎回ロードしないでください。
-
-## 禁止事項
-
-次をデフォルトで禁止します。
-
-- 新しいRoleや `@layer` を勝手に追加する
-- Localの問題をGlobalへ移して解決する
-- Page CSSからComponent内部を直接上書きする
-- Component CSSから別Component内部を直接上書きする
-- `!important` で競合を解決する
-- 色やその他のテーマ依存値をLocalにハードコードする
-- テーマで変わらない単発値を、抽象化のためだけにToken化する
-- UIの表示状態を `opacity: 0` だけで機能的に制御する
-- DOM階層へ深く依存したセレクタを作る
-- Roleごとに所有者ファイルを分割する
