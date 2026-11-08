@@ -1,25 +1,25 @@
-# Codex / ChatGPT利用状況の確認
+# CodexとChatGPTの利用状況
 
-`scripts/codex-usage.sh` を実行して、Codex OAuthに紐づくChatGPTアカウントの利用クォータ（残量・制限）を取得します。
+`scripts/codex-usage.sh`は、`~/.codex/auth.json`（`CODEX_HOME`があればその下）を読み、Codex CLIのOAuthクライアントとしてアクセストークンを更新する。
+refresh tokenは更新のたびに入れ替わるため、更新後の認証情報を`auth.json`へアトミックに保存してから、`GET https://chatgpt.com/backend-api/wham/usage`を呼び出す。
+このため、スクリプトの実行は`auth.json`を書き換える。
 
-## 前提条件
-- 依存コマンド: `curl`, `jq`
-- 認証情報: `~/.codex/auth.json`（スクリプト実行時に自動でトークン更新・保存されます）
+## 出力
 
-## 取得データの主なフィールド
-レスポンスに含まれる主要なレート制限情報は以下の通りです。
+応答はライブのクォータである。
+主なフィールドは次のとおり。
 
-- `rate_limit.primary_window.used_percent`: 使用率（%）
-- `rate_limit.primary_window.reset_at` / `reset_after_seconds`: リセット日時 / 残り秒数
-- `rate_limit.secondary_window`: サブウィンドウの制限（存在する場合）
-- `additional_rate_limits`: モデル別プールの制限情報
+- `rate_limit.primary_window.used_percent`
+- `rate_limit.primary_window.reset_at`と`reset_after_seconds`
+- 存在する場合の`rate_limit.secondary_window`
+- モデル別プールの`additional_rate_limits`
 
-## 注意事項・制約（エージェント向け指示）
+反映されるのは、Codex OAuthログインに紐づくChatGPTプランの利用枠である。
+OpenAI APIの従量課金の使用量は含まない。
 
-1. **認証エラー時の対応**:
-   - トークンの更新に失敗した場合は、ユーザーに `codex login` の再実行を案内してください。
-   - **チャット上でユーザーにアクセストークンを尋ねてはいけません。**
-2. **対象データ**:
-   - 反映されるのは **ChatGPTプランの利用枠** です（OpenAI API従量課金の使用量ではありません）。
-3. **エンドポイント仕様**:
-   - 内部非公開API（`chatgpt.com/backend-api/wham/usage`）を利用しているため、予告なく仕様変更される可能性があります。
+## 前提と障害時
+
+- スクリプトには`curl`と`jq`が必要である。
+- トークンの更新に失敗した場合は、ユーザーが`codex login`で再ログインする。
+  トークンはチャットで求めず、ユーザーのログインで更新する。
+- WHAMエンドポイントは非公開であり、変更され得る。
