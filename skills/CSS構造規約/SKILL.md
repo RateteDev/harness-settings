@@ -8,96 +8,111 @@ metadata:
 
 # CSS構造規約
 
-## このスキルの目的
+## 目的
+CSSの配置先と責務を「所有者（Scope）」と「役割（Role）」の2軸で明確化し、実装の迷いをなくすとともに、誤った配置を静的検査で検知できるようにする。
 
-CSSを「どこに属するか」と「何を担うか」の2軸で整理し、人間とエージェントの双方が変更先と責務を迷わず判断できる状態を作る。
-細かく分類すること自体ではなく、誤った配置を静的検査で止められる状態にすることが目的である。
+---
 
-## 進め方
+## 2つの軸（ScopeとRole）
 
-CSSを書くときは、宣言ごとに所有者（Scope）と役割（Role）を決めてから置き場を選ぶ。
+すべてのCSS宣言は、**Scope（誰が持つか）** と **Role（何を担うか）** を決定してから記述する。
 
-### Scope
+### 1. Scope（所有者）
+セレクタではなく「どの単位が所有するか」で判断する。
 
-ScopeはセレクタではなくCSSの所有者で決める。
+- **Global**: アプリ全体で共有する基礎定義（layer順序宣言、テーマToken、リセットCSS、全体適用ルールなど）。
+- **Local / Page**: 特定ページの大枠レイアウトやページ固有のUI。
+- **Local / Component**: ページから独立したUIパーツ（再利用回数に関わらず、単独で命名でき持ち出し可能な単位）。
 
-- **Global** — アプリケーション全体が所有する。
-  layer順序の宣言、テーマToken、最小限のreset、`box-sizing: border-box`など、全体の基礎に限る。
-- **Local / Page** — 特定のページが所有する。
-  ページの大枠とページ固有のUIを扱う。
-- **Local / Component** — ページから独立したUI単位が所有する。
+**原則:**
+- PageとComponentは親子関係ではない。
+  PageはComponentを「配置」するだけで、Component内部のCSSには干渉しない。
+- Localの問題は、そのLocalを所有するファイル内で解決する。
 
-PageとComponentはどちらもLocalで、親子関係ではない。
-ページはComponentを配置するだけで、Component内部のCSSはComponent自身が所有する。
-Componentにするかは再利用の回数ではなく、独立したUI単位として名付けられ、別の場所へ持ち出しても意味があるかで決める。
-Localで解決できる問題は、Localの所有者ファイルで解決する。
-
-### Role
-
-Roleは次の3つに限り、CSS標準の`@layer`で表す。
-順序はCSSのエントリーポイントで一度だけ宣言し、first-partyの宣言はすべていずれかのlayerへ入れる。
+### 2. Role（役割）
+CSS標準の `@layer` を用いて、以下の3層・順序で管理する。
+※ エントリーポイントで順序を一度だけ宣言し、自作の宣言は必ずいずれかのlayerに配置する。
 
 ```css
 @layer tokens, structure, design;
 ```
 
-- **Tokens** — サイトで許可する色と、テーマで切り替わるその他の値を定義する。
-- **Structure** — UIの構造・配置・可読性・操作性を成立させる。
-- **Design** — UIが成立した後の視覚表現を担う。
+- **tokens**: 許可するカラーパレットや、テーマ切り替えに必要な変数を定義する。
+- **structure**: レイアウト、配置、サイズ、可読性、操作性を担保する（骨組み）。
+- **design**: 装飾的な視覚表現（見た目の装飾）。
 
-### Structure / Designの分類
+---
 
-`design` layerを丸ごと削除しても、情報を読めて、主要な操作ができ、配置が破綻しない状態を保つ。
-宣言を削除したときに、読めない、操作できない、要素が重なるか画面外へ出る、必要な境界が判別できない、レイアウトや折り返しが崩れる、のいずれかが起きるならStructureに置く。
-色・影・角丸・装飾的な透明度やグラデーションが消えて素朴になるだけなら、Designに置く。
-プロパティ名ではなく、この削除テストで決める。
+## Roleの判定基準（削除テスト）
 
-この規約では、次の分類を固定する。
+**「`design` layerを丸ごと消しても、UIが壊れず読めて操作できるか」** で判断する。
 
-- フォントの指定（`font-size`・`line-height`・`font-weight`・`font-family`）は、幅と折り返しに影響するためStructureに置く。
-- borderは分割し、`border-width`・`border-style`とUIに必要な境界の有無をStructure、`border-color`・`border-radius`をDesignに置く。
+- **Structureに配置（骨組み）:**
+  - 削除すると「読めない」「操作できない」「重なる/はみ出る」「境界が不明」「レイアウトが崩れる」もの。
+  - **フォント指定**（`font-size`, `line-height`, `font-weight`, `font-family`）：折り返しや幅に影響するため。
+  - **境界線の有無・太さ・形状**（`border-width`, `border-style`）。
+- **Designに配置（装飾）:**
+  - 削除しても素朴（ブラウザ標準風）になるだけで、破綻しないもの。
+  - **色・装飾**（`color`, `background-color`, `border-color`, `border-radius`, `box-shadow`, 装飾用グラデーション/透明度）。
 
-**判定に迷ったらStructureに置く**。
-Designは消しても成立するという契約を負うため、誤ってDesignへ置くほうがUIを壊すからである。
-ただし宣言を分割できるなら分ける。
+> **迷ったら `structure` に配置する。**  
+> `design` に誤配置して骨組みが壊れるリスクを避けるため。
+> プロパティが複合している場合（例: `border`）は分割して各layerへ配置する。
 
-### Tokens
+---
 
-**色は常にGlobal Tokenを通す**。
-**色以外は、テーマで実際に切り替わる値だけをTokenにする**。
-テーマで変わらない`padding: 24px`や`border-radius: 12px`は、同じ値を複数箇所で使う場合や将来変える可能性がある場合でも直値で書く。
+## トークン（Tokens）の扱い
 
-Tokenはテーマ名を知るGlobalの`tokens` layerだけで定義し、Local CSSはテーマ名を知らずにTokenだけを参照する。
-LocalのCustom Propertyは、Componentの引数や計算など明確な目的があるときだけ使い、色とテーマで変わる値はGlobal Tokenから受け取る。
+- **色は常にGlobal Tokenを使用する:** CSS内に生の色コード（Hex, RGB等）を直書きしない。
+- **色以外の値（余白・角丸など）:** 
+  - テーマ切り替えで実際に変化する値のみToken化する。
+  - テーマで不変な値（例: `padding: 24px`, `border-radius: 12px`）は、複数箇所で使う場合でも**直値で記述**する。
+- **参照ルール:**
+  - Globalの `tokens` layerで定義し、Localからは変数を参照するのみとする。
+  - Local固有のCustom Propertyは、コンポーネントの引数や計算処理など明確な目的がある場合のみ許容する。
 
-### ファイル
+---
 
-Local CSSは所有者ごとに1ファイルとし、Roleは1ファイル内の`@layer`で分ける。
-Roleごとにファイルを分けると、同じ所有者の変更で複数のファイルを往復することになるためである。
-素のCSSを中央管理する場合は、`styles/global/`・`styles/pages/`・`styles/components/`の下に置く。
-フレームワークがscoped CSSやCSS Modulesを持つ場合はScopeをそちらに任せ、Roleだけを`@layer`で表す。
+## ファイル構成
 
-### 変更手順
+- **1所有者 = 1ファイル:**
+  Local CSSは所有者（PageまたはComponent）ごとに1ファイルとし、Roleの違いは同一ファイル内の `@layer` で分ける（ファイル往復の防止）。
+- **配置ディレクトリ（素のCSSの場合）:**
+  - `styles/global/`
+  - `styles/pages/`
+  - `styles/components/`
+- **Scoped CSS / CSS Modulesを使う場合:**
+  Scope分離はフレームワーク機能に任せ、ファイル内でのRole分割に `@layer` を使用する。
 
-1. 変更対象の所有者を特定し、Global・Page・Componentのどれかを決める。
-2. 既存の所有者ファイルを優先し、CSSファイルは必要なときだけ増やす。
-3. 各宣言をTokens / Structure / Designへ分類する。
-4. PageやComponentから別Componentの内部を変えたいときは、そのComponentの所有者ファイルで変更する。
-5. セレクタは対象に意味のあるclassを付けて当て、DOM階層に依存させない。
-6. 詳細度や順序の競合は、所有者とRoleの見直しで解決する。
-7. 表示・非表示やモーダルの開閉は`hidden`・`<dialog>`・`aria-*`・条件描画・JavaScriptの状態で表し、`opacity`は視覚効果に限る。
-8. 変更後にリポジトリ既定のLintとテストを実行する。
-   Lintに通っても、分類や所有者のような意味の規則まで満たしたとは限らないため、上の手順で確かめる。
+---
 
-### Lintで強制する規則
+## 実装・変更手順
 
-リポジトリにLintがある場合、違反はコードを直して解消する。
-Lintを新規に実装する場合は、判定の確実さで重さを分ける。
+1. **所有者を特定:** 変更対象がGlobal / Page / Componentのどれに属するか決める。
+2. **既存ファイルを優先:** 既存の所有者ファイルへ追記・修正し、安易にファイルを増やさない。
+3. **Roleへ分類:** 各CSSプロパティを `structure` または `design` に分類して記述する。
+4. **他コンポーネントへの不干渉:** 親から子コンポーネントの内部スタイルを上書きしない（対象コンポーネント側で変更する）。
+5. **セレクタ設計:** DOM階層に依存させず、対象に意味のあるクラスを付与して指定する。
+6. **競合解消:** 詳細度ハック（`!important` 等）を使わず、ScopeとRoleの配置を見直して解決する。
+7. **表示制御:** 状態の開閉・表示切替は `hidden` 属性、`<dialog>`、`aria-*`、JS条件描画で行う（`opacity` はアニメーション等の視覚効果のみに限定）。
+8. **静的検証:** 作業後にLintとテストを実行し、構文だけでなく所有権や分類の妥当性を確認する。
 
-- 確実に判定できる規則はエラーにする。
-  未知のlayer、layer外のfirst-party宣言、layer順序の再宣言、Localでの生の色、LocalでのTokenの定義、`!important`、IDセレクタが対象である。
-- 生の色はshorthand・gradient・shadowの中にも現れるため、値の構文木まで解析する。
-  `transparent`や`currentColor`を許すかは、リポジトリで決める。
-- 未定義のTokenの参照と、テーマ間でToken名の集合が揃っているかも検査する。
-- 意味に依存する規則は警告に留める。
-  design内のレイアウト系プロパティや`transform`、structure内の`box-shadow`、深いセレクタが対象である。
+---
+
+## 静的検査（Lint）の適用基準
+
+リポジトリでLintを実装・運用する際の重大度基準。
+
+### エラー（ビルド停止）
+- 未知の `@layer` 名の使用、layer外でのfirst-party宣言。
+- `@layer` 順序の再宣言。
+- Localでの生の色コード直書き、LocalでのGlobal Token再定義。
+- `!important` の使用。
+- IDセレクタの使用。
+- 未定義Tokenの参照、テーマ間でのToken定義漏れ。
+- ※ shorthand・gradient・shadow内の生色もAST（構文木）解析で検知する。
+
+### 警告（レビューで確認）
+- `design` layer内でのレイアウト系プロパティ（`display`, `width`, `margin` 等）や `transform` の使用。
+- `structure` layer内での `box-shadow` や色の使用。
+- 深すぎるネストセレクタ。
