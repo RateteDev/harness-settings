@@ -23,10 +23,9 @@ Usage:
 Environment:
   GEMINI_API_KEY  API key for the Gemini API (required).
 
-Each file must be committed with no uncommitted changes, so that the rewrite
-can be reviewed with git diff and undone with git restore.
-The whole file is sent; the frontmatter in the result is replaced with the
-original one. A file whose rewrite fails is left untouched.
+The whole file is sent and overwritten with the result; review it with git diff.
+The frontmatter in the result is replaced with the original one.
+A file whose rewrite fails is left untouched.
 Exit status is 0 only when every file was rewritten.`
 
 const FRONTMATTER = /^---\n[\s\S]*?\n---\n/
@@ -60,7 +59,6 @@ async function main(): Promise<number> {
 }
 
 async function rewrite(file: string, apiKey: string): Promise<string> {
-  assertCommitted(file)
   const original = await Bun.file(file).text()
   const response = await generate(original, apiKey)
 
@@ -84,19 +82,6 @@ async function rewrite(file: string, apiKey: string): Promise<string> {
 
   const usage = response.usageMetadata ?? {}
   return `model ${response.modelVersion ?? "unknown"}, tokens in ${usage.promptTokenCount ?? "?"} / out ${usage.candidatesTokenCount ?? "?"} / thinking ${usage.thoughtsTokenCount ?? 0}`
-}
-
-function assertCommitted(file: string) {
-  const status = Bun.spawnSync(["git", "status", "--porcelain", "--", file], { stderr: "pipe" })
-  if (status.exitCode !== 0) {
-    throw new RewriteError("git status failed; run inside a git working tree")
-  }
-  if (status.stdout.toString().trim() !== "") {
-    throw new RewriteError("file is untracked or has uncommitted changes; commit it first")
-  }
-  if (Bun.spawnSync(["git", "ls-files", "--error-unmatch", "--", file], { stderr: "pipe" }).exitCode !== 0) {
-    throw new RewriteError("file is not tracked by git")
-  }
 }
 
 type GenerateResponse = {

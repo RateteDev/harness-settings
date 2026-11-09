@@ -47,4 +47,4 @@ metadata:
 ## 手段
 
 - 開発時の動作確認には、ホストのBun・Pythonを使う。
-- Gemini推敲のスクリプトは、Bunとgitを前提とする。
+- Gemini推敲のスクリプトは、Bunを前提とする。
