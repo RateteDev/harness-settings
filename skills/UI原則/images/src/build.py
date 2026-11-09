@@ -58,65 +58,70 @@ def lines(*sentences):
 PAGES = {}
 
 # 1. 見出しの直後に、情報を足さない補足を置かない
-notify = "<p>" + lines("届け先は、設定画面の通知の欄から選べます。", "両方を選ぶと、同じ内容が両方に届きます。") + "</p>"
+notify = "<p>届け先は設定画面の通知の欄から選べます。</p>"
 PAGES["01-heading-lead"] = page(
     '<h2>通知はメールとSlackに届く</h2><p class="lead mark">通知の届け先について説明します。</p>' + notify,
     "<h2>通知はメールとSlackに届く</h2>" + notify,
 )
 
 # 2. 要点を言い換えた締めのひとことを書かない
-build = "<p>" + lines("依存パッケージの取得結果をキャッシュします。", "2回目以降のビルドでは、取得を省きます。") + "</p>"
+build = "<p>依存パッケージの取得結果をキャッシュします。</p>"
 PAGES["02-closing-line"] = page(
-    "<h2>ビルドは2回目から速くなる</h2>" + build + '<p class="closer mark">待ち時間が減れば、開発はもっと軽くなる。</p>',
+    "<h2>ビルドは2回目から速くなる</h2>" + build + '<p class="closer mark">待ち時間が減れば開発はもっと軽くなる。</p>',
     "<h2>ビルドは2回目から速くなる</h2>" + build,
     css=".closer{margin-top:16px;font-weight:700}",
 )
 
-# 3. 横に並ぶ要素の端と、中の要素の高さを揃える
+# 3. 目的に使わない情報を添えない
+PAGES["03-unneeded-info"] = page(
+    '<div class="toast"><b>✓</b><p>' + lines("保存しました。", '<span class="mark">保存先はクラウドでデータは暗号化されています。</span>') + "</p></div>",
+    '<div class="toast"><b>✓</b><p>保存しました。</p></div>',
+    css=""".toast{display:flex;gap:14px;align-items:flex-start;margin-top:8px;padding:16px 20px;border-radius:10px;background:#1a1a1a;color:#fff}
+.toast b{font-size:18px;line-height:1.6}.toast p{font-size:16px;line-height:1.75}.toast .mark{outline-color:#ff8a8a;outline-offset:2px}.toast .s+.s{margin-top:4px}""",
+)
+
+# 4. 見出しは事実を言い切る
+export = "<p>書き出す月を選ぶとその月の明細が1つのファイルになります。</p>"
+PAGES["04-heading-statement"] = page(
+    '<h2><span class="mark">データのエクスポートについて</span></h2>' + export,
+    "<h2>CSVは月ごとに書き出せる</h2>" + export,
+)
+
+# 5. 本文の段落では、1文ごとに改行する（複数の文がないと見せられないため、最小の2文にする）
+PAGES["05-sentence-per-line"] = page(
+    "<h2>パスワードは12文字以上</h2>"
+    '<p class="para">英字と数字をそれぞれ1文字以上含めてください。<span class="mark">前</span>と同じパスワードは使えません。</p>',
+    "<h2>パスワードは12文字以上</h2>"
+    '<p class="para">' + lines("英字と数字をそれぞれ1文字以上含めてください。", "前と同じパスワードは使えません。") + "</p>",
+    css=".para{max-width:420px}.para .mark{outline-offset:1px}",
+)
+
+# 6. 不自然な位置で折り返さない（BADの折り返しを再現できるよう、行は手で区切る）
+PAGES["06-line-break"] = page(
+    '<div class="col"><p>' + lines('保存できる容量は残り<span class="mark">1</span>', '<span class="mark">2</span>GBです。') + "</p></div>",
+    '<div class="col"><p>' + lines("保存できる容量は", "残り12GBです。") + "</p></div>",
+    css=".col{white-space:nowrap}.col p{font-size:20px;line-height:1.7}.col .mark{outline-offset:2px}",
+)
+
+# 7. 横に並ぶ要素の端と、中の要素の高さを揃える
 cards = (
     '<div class="cards" data-guides=".card:bottom,.fav:top">'
     '<div class="card"><b>weather</b><p>現在の天気を返す。</p><span class="fav">☆ お気に入り</span></div>'
-    '<div class="card"><b>github</b><p>Issueを読み書きする。</p><p>コメントも操作できる。</p><span class="fav">☆ お気に入り</span></div>'
+    '<div class="card"><b>github</b><p>Issueとプルリクエストを<span class="nobr">読み書きする。</span></p><span class="fav">☆ お気に入り</span></div>'
     "</div>"
 )
-PAGES["03-align"] = page(
+PAGES["07-align"] = page(
     cards,
     cards,
     css=""".cards{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
 .card{border:2px solid #1a1a1a;border-radius:10px;padding:16px 18px;display:flex;flex-direction:column}
-.card b{font-size:19px;margin-bottom:6px}.card p{font-size:14px;line-height:1.7}
+.card b{font-size:19px;margin-bottom:6px}.nobr{white-space:nowrap}.card p{font-size:14px;line-height:1.7}
 .fav{align-self:flex-start;margin-top:14px;border:2px solid #1a1a1a;border-radius:999px;padding:3px 14px;font-size:13px;font-weight:700}
 .bad .cards{align-items:start}
 .good .cards{align-items:stretch}.good .fav{margin-top:auto}.good .card p:last-of-type{margin-bottom:14px}
 .guide{position:absolute;left:-12px;right:-12px;height:0;border-top:2px dashed}
 .bad .guide{border-color:#d23b3b}.good .guide{border-color:#2f8f4e}""",
     script=GUIDE_SCRIPT,
-)
-
-# 4. 不自然な位置で折り返さない（BADの折り返しを再現できるよう、行は手で区切る）
-PAGES["04-line-break"] = page(
-    '<div class="col"><p>' + lines('保存できる容量は、残り<span class="mark">1</span>', '<span class="mark">2</span>GBです。') + "</p>"
-    "<p>" + lines("古いバックアップは、30日たつと自動で削除され", '<span class="mark">る。</span>') + "</p></div>",
-    '<div class="col"><p>' + lines("保存できる容量は、", "残り12GBです。") + "</p>"
-    "<p>" + lines("古いバックアップは、30日たつと", "自動で削除される。") + "</p></div>",
-    css=".col{white-space:nowrap}.col p{font-size:20px;line-height:1.7}.col p+p{margin-top:20px}.col .mark{outline-offset:2px}",
-)
-
-# 5. 本文の段落では、1文ごとに改行する
-PAGES["05-sentence-per-line"] = page(
-    "<h2>パスワードは12文字以上</h2>"
-    '<p class="para">英字と数字を、それぞれ1文字以上含めてください。<span class="mark">記</span>号も使えます。'
-    '<span class="mark">前</span>と同じパスワードは使えません。</p>',
-    "<h2>パスワードは12文字以上</h2>"
-    '<p class="para">' + lines("英字と数字を、それぞれ1文字以上含めてください。", "記号も使えます。", "前と同じパスワードは使えません。") + "</p>",
-    css=".para{max-width:420px}.para .mark{outline-offset:1px}",
-)
-
-# 6. 見出しは事実を言い切る
-export = "<p>" + lines("書き出す月を選ぶと、その月の明細が1つのファイルになります。", "文字コードはUTF-8です。") + "</p>"
-PAGES["06-heading-statement"] = page(
-    '<h2><span class="mark">データのエクスポートについて</span></h2>' + export,
-    "<h2>CSVは月ごとに書き出せる</h2>" + export,
 )
 
 if __name__ == "__main__":
