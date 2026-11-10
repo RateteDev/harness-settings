@@ -39,7 +39,8 @@
 #   claude-code-remoteも同時に消えるので、セッション内から環境を直せなくなる。
 # - フックのcommandが指すディレクトリは、setup-script.sh の REPO_DIR と一致させる。
 #
-# 非ゼロ終了はセッション起動失敗になるため、失敗は握りつぶさない。
+# SessionStart フックの非ゼロ終了は、セッションの起動を止めずエラーとして表示されるだけである（公式文書 hooks の終了コードの項）。
+# 失敗に気づけるよう、握りつぶさず非ゼロで終了する。
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
