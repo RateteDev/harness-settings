@@ -1,6 +1,6 @@
 #!/bin/bash
 # 最新化済みのクローンから、skills/ と settings.json を ~/.claude へ丸ごと反映する。
-# 呼び出し元と時機は setup.sh 冒頭の図を参照。
+# 呼び出し元と時機は install-settings.sh 冒頭の図を参照。
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
