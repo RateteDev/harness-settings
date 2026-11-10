@@ -228,17 +228,19 @@ function renderRow(row: Row, prev: Row | undefined, next: Row | undefined): stri
     const s = row.step
     if (s.種類 === "徒歩") {
       const detail = `約 ${s.分} 分${s.メートル === undefined ? "" : `、${s.メートル} m`}`
-      return `<li class="row leg" data-kind="walk"><div class="side">${ICON_WALK}</div><div class="body"><p class="head">徒歩</p><p class="detail nowrap">${esc(detail)}</p></div></li>`
+      return `<li class="row leg" data-kind="walk"><div class="side">${ICON_WALK}</div><div class="rail"></div><div class="body"><p class="head">徒歩</p><p class="detail nowrap">${esc(detail)}</p></div></li>`
     }
     const head = [chip(s), s.種別 ? `<span>${esc(s.種別)}</span>` : "", `<span>${esc(s.行先)}</span>`].join("")
-    const stops = s.停車駅 === undefined ? "" : `（${esc(s.停車駅)}）`
+    const stops = s.停車駅 === undefined ? "" : `<span class="nowrap">（${esc(s.停車駅)}）</span>`
     const extras = [
       s.定刻 ? `<span class="ontime">定刻</span>` : "",
       s.ホーム === undefined ? "" : esc(s.ホーム),
       s.乗換地点ID === undefined ? "" : `乗換地点 ID: ${esc(s.乗換地点ID)}`,
-    ].filter(Boolean)
-    const extraLine = extras.length === 0 ? "" : `<p class="detail">· ${extras.join(" · ")}</p>`
-    return `<li class="row leg" data-kind="ride"${lineVar(s.色)}><div class="side">${symbolBadge(s)}</div><div class="body"><p class="head">${head}</p><p class="detail"><span class="nowrap">${elapsed(s.発.時刻, s.着.時刻)} 分</span>${stops}</p>${extraLine}</div></li>`
+    ]
+      .filter(Boolean)
+      .map((item) => `<span class="nowrap">· ${item}</span>`)
+    const extraLine = extras.length === 0 ? "" : `<p class="detail">${extras.join(" ")}</p>`
+    return `<li class="row leg" data-kind="ride"${lineVar(s.色)}><div class="side">${symbolBadge(s)}</div><div class="rail"></div><div class="body"><p class="head">${head}</p><p class="detail"><span class="nowrap">${elapsed(s.発.時刻, s.着.時刻)} 分</span>${stops}</p>${extraLine}</div></li>`
   }
   const before = railOf(prev)
   const after = railOf(next)
@@ -250,15 +252,43 @@ function renderRow(row: Row, prev: Row | undefined, next: Row | undefined): stri
   ].filter(Boolean)
   const style = vars.length === 0 ? "" : ` style="${vars.join(";")}"`
   const sub = row.sub === undefined ? "" : `<p class="sub">${esc(row.sub)}</p>`
-  return `<li class="row node${row.end ? " node-end" : ""}" data-above="${above}" data-below="${below}"${style}><div class="side"><time>${esc(row.time)}</time></div><span class="rail-dot"></span><div class="body"><p class="place">${esc(row.name)}</p>${sub}</div></li>`
+  return `<li class="row node${row.end ? " node-end" : ""}" data-above="${above}" data-below="${below}"${style}><div class="side"><time>${esc(row.time)}</time></div><div class="rail"><span class="rail-dot"></span></div><div class="body"><p class="place">${esc(row.name)}</p>${sub}</div></li>`
+}
+
+const isRide = (s: Walk | Ride): s is Ride => s.種類 === "乗車"
+
+// 乗換の徒歩は次の乗車と、最後の徒歩は直前の乗車と同じ組にし、折り返しは組の間だけで起こす。
+function summaryGroups(steps: (Walk | Ride)[]): (Walk | Ride)[][] {
+  const groups: (Walk | Ride)[][] = []
+  let current: (Walk | Ride)[] = []
+  steps.forEach((s, i) => {
+    const hasRide = current.some(isRide)
+    if (isRide(s)) {
+      if (hasRide) {
+        groups.push(current)
+        current = []
+      }
+      current.push(s)
+    } else if (hasRide && i < steps.length - 1) {
+      groups.push(current)
+      current = [s]
+    } else {
+      current.push(s)
+    }
+  })
+  if (current.length > 0) groups.push(current)
+  return groups
 }
 
 function renderSummary(route: Route): string {
-  const rides = route.経路.filter((s): s is Ride => s.種類 === "乗車")
+  const rides = route.経路.filter(isRide)
   const walkMinutes = route.経路.reduce((sum, s) => sum + (s.種類 === "徒歩" ? s.分 : 0), 0)
-  const legs = route.経路
-    .filter((s) => s.種類 === "乗車" || s.分 >= SUMMARY_MIN_WALK_MINUTES)
-    .map((s) => (s.種類 === "徒歩" ? `<li aria-label="徒歩">${ICON_WALK}</li>` : `<li>${symbolBadge(s)}${chip(s)}</li>`))
+  const visible = route.経路.filter((s) => isRide(s) || s.分 >= SUMMARY_MIN_WALK_MINUTES)
+  const legs = summaryGroups(visible)
+    .map((group) => {
+      const items = group.map((s) => (isRide(s) ? `${symbolBadge(s)}${chip(s)}` : `<span aria-label="徒歩">${ICON_WALK}</span>`))
+      return `<li class="leg-group">${items.join(`<span class="sep" aria-hidden="true">›</span>`)}</li>`
+    })
     .join("")
   const from =
     rides.length === 0 ? "" : `<p class="summary-meta">${esc(rides[0].発.駅)}から ${esc(rides[0].発.時刻)}</p>`
@@ -284,7 +314,6 @@ ${css}</style>
 <header class="route-head"><p><span>出発地:</span> ${esc(route.出発地.名称)}</p><p><span>目的地:</span> ${esc(route.目的地.名称)}</p></header>
 ${renderSummary(route)}
 <ol class="timeline">${timeline}</ol>
-<p class="fare-note">料金: ${yen(route.運賃)}</p>
 </main>
 </body>
 </html>

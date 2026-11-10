@@ -1,4 +1,5 @@
-/* 行の左から 16px の余白・時刻 40px・レール 24px・本文の順に並べ、レールの中心を x=68px に置く。 */
+/* 時刻や記号の幅は固定せず、端末の文字サイズ設定が変わっても折り返しや重なりを起こさないようにする。
+   行間は文字サイズに連動する数値で指定し、点と文字の縦位置は行の高さ(lh)から求める。 */
 
 @layer structure {
   .route {
@@ -6,17 +7,17 @@
     max-width: 408px;
     margin: 0 auto;
     font-size: 16px;
-    line-height: 24px;
+    line-height: 1.5;
     text-wrap: pretty;
     word-break: auto-phrase;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   .route-head {
     margin: 0;
     padding: 21px 16px 15px;
     font-size: 14px;
-    line-height: 24px;
+    line-height: 1.7;
     border-bottom: 1px solid;
   }
 
@@ -32,7 +33,7 @@
   .summary-time {
     margin: 0 0 11px;
     font-size: 22px;
-    line-height: 32px;
+    line-height: 1.45;
     font-weight: 500;
   }
 
@@ -49,26 +50,41 @@
     margin: 0 0 6px;
     padding: 0;
     list-style: none;
+    font-size: 12px;
+    line-height: 1.35;
   }
 
-  .summary-legs li {
+  /* 折り返しは組の間だけで起こし、徒歩の記号だけが行に残らないようにする。 */
+  .leg-group {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    line-height: 16px;
+    gap: 4px 6px;
+    white-space: nowrap;
   }
 
-  .summary-legs li:not(:last-child)::after {
+  .leg-group:not(:last-child)::after {
     content: "›";
-    font-size: 16px;
-    margin-left: 6px;
+    font-size: 1.33em;
+  }
+
+  .sep {
+    font-size: 1.33em;
+  }
+
+  .summary-legs svg {
+    width: 1.33em;
+    height: 1.33em;
   }
 
   .summary-meta {
     margin: 0;
     font-size: 14px;
-    line-height: 22px;
+    line-height: 1.55;
+  }
+
+  .summary-meta svg {
+    width: 1.15em;
+    height: 1.15em;
   }
 
   .summary-meta .fare-line {
@@ -82,17 +98,32 @@
   }
 
   .timeline {
+    display: grid;
+    grid-template-columns: minmax(40px, max-content) 24px minmax(0, 1fr);
     margin: 0;
-    padding: 13px 0 8px;
+    padding: 13px 40px 8px 16px;
     list-style: none;
   }
 
   .row {
-    --dot-y: 25px;
-    position: relative;
     display: grid;
-    grid-template-columns: 40px 24px 1fr;
-    padding: 0 40px 0 16px;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+  }
+
+  .row .side {
+    grid-column: 1;
+    font-size: 14px;
+    line-height: 1.7;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .row .rail {
+    grid-column: 2;
+    position: relative;
+    font-size: 17px;
+    line-height: 1.4;
   }
 
   .row .body {
@@ -105,11 +136,13 @@
     border-top: 1px solid;
   }
 
-  .row .side {
-    grid-column: 1;
-    font-size: 14px;
-    line-height: 24px;
-    padding-top: 13px;
+  .node {
+    align-items: first baseline;
+  }
+
+  .node .rail {
+    align-self: stretch;
+    --dot-y: calc(13px + 0.5lh);
   }
 
   .node .body {
@@ -120,12 +153,13 @@
     margin: 0;
     font-weight: 700;
     font-size: 17px;
+    line-height: 1.4;
   }
 
   .node .sub {
     margin: 4px 0 0;
     font-size: 13px;
-    line-height: 20px;
+    line-height: 1.55;
   }
 
   .leg[data-kind="ride"] .body {
@@ -139,12 +173,22 @@
   .leg .side {
     display: flex;
     justify-content: center;
-    padding-top: 23px;
+    font-size: 17px;
+  }
+
+  .leg[data-kind="ride"] .side {
+    line-height: 1.2;
+    padding-top: calc(21px + 0.5lh - 0.5em);
+  }
+
+  .leg[data-kind="walk"] .side {
+    line-height: 1.4;
+    padding-top: calc(19px + 0.5lh - 0.5em);
   }
 
   .leg .side svg {
-    width: 16px;
-    height: 16px;
+    width: 1em;
+    height: 1em;
   }
 
   .leg .head {
@@ -154,111 +198,104 @@
     gap: 0 6px;
     margin: 0;
     font-size: 17px;
-    line-height: 20px;
+    line-height: 1.2;
   }
 
   .leg[data-kind="walk"] .head {
-    line-height: 24px;
+    line-height: 1.4;
   }
 
   .leg .detail {
     margin: 0;
     font-size: 12px;
-    line-height: 13px;
+    line-height: 1.08;
   }
 
   .leg .head + .detail {
     margin-top: 11px;
   }
 
-  .rail-dot,
-  .leg::before,
-  .node::before,
-  .node::after {
+  .rail::before,
+  .rail::after {
     position: absolute;
-    left: 65px;
+    left: 50%;
     width: 6px;
+    margin-left: -3px;
   }
 
-  .leg::before {
+  .leg .rail::before {
     content: "";
     top: 0;
     bottom: 0;
   }
 
-  .node::before {
+  .node .rail::before {
     content: "";
     top: 0;
     height: var(--dot-y);
   }
 
-  .node::after {
+  .node .rail::after {
     content: "";
     top: var(--dot-y);
     bottom: 0;
   }
 
-  .node[data-above="none"]::before,
-  .node[data-below="none"]::after {
+  .node[data-above="none"] .rail::before,
+  .node[data-below="none"] .rail::after {
     content: none;
   }
 
   .rail-dot {
-    left: 61px;
+    position: absolute;
+    left: 50%;
     top: calc(var(--dot-y) - 7px);
     width: 14px;
     height: 14px;
+    margin-left: -7px;
     border: 2px solid;
     z-index: 1;
   }
 
   .node-end .rail-dot {
-    left: 59px;
     top: calc(var(--dot-y) - 9px);
     width: 18px;
     height: 18px;
+    margin-left: -9px;
   }
 
   .chip {
     display: inline-block;
     padding: 0 4px;
     font-size: 12px;
-    line-height: 18px;
+    line-height: 1.5;
+    white-space: nowrap;
   }
 
   .leg .chip {
     font-size: 15px;
-    line-height: 19px;
+    line-height: 1.25;
     padding: 0 3px;
   }
 
   .symbol {
     display: inline-flex;
+    flex: none;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
+    min-width: 2em;
+    height: 2em;
+    padding-inline: 0.25em;
     border: 1.5px solid;
     font-size: 8px;
     line-height: 1;
     font-weight: 700;
+    white-space: nowrap;
   }
 
   .symbol svg {
-    width: 11px;
-    height: 11px;
-  }
-
-  .summary svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .fare-note {
-    margin: 0;
-    padding: 4px 16px 24px;
-    font-size: 12px;
-    line-height: 20px;
+    width: 1.4em;
+    height: 1.4em;
   }
 }
 
@@ -276,7 +313,7 @@
   .summary-meta,
   .node .sub,
   .leg .detail,
-  .fare-note {
+  .sep {
     color: var(--color-text-sub);
   }
 
@@ -284,7 +321,7 @@
     border-bottom-color: var(--color-divider);
   }
 
-  .summary-legs li::after {
+  .leg-group::after {
     color: var(--color-text-sub);
   }
 
@@ -331,21 +368,21 @@
     background: radial-gradient(circle, var(--color-text) 3.5px, var(--color-bg) 4px);
   }
 
-  .leg[data-kind="ride"]::before {
+  .leg[data-kind="ride"] .rail::before {
     background: var(--line-color, var(--color-line-default));
   }
 
-  .node[data-above="ride"]::before {
+  .node[data-above="ride"] .rail::before {
     background: var(--above-color, var(--color-line-default));
   }
 
-  .node[data-below="ride"]::after {
+  .node[data-below="ride"] .rail::after {
     background: var(--below-color, var(--color-line-default));
   }
 
-  .leg[data-kind="walk"]::before,
-  .node[data-above="walk"]::before,
-  .node[data-below="walk"]::after {
+  .leg[data-kind="walk"] .rail::before,
+  .node[data-above="walk"] .rail::before,
+  .node[data-below="walk"] .rail::after {
     background: radial-gradient(circle at 50% 50%, var(--color-walk) 3px, transparent 3.5px) center top / 6px 12px repeat-y;
   }
 }
