@@ -68,13 +68,17 @@ if [ ! -f "$SETTINGS_DEST" ] || [ "$(jq -S . "$SETTINGS_DEST" 2>/dev/null)" != "
   echo "$SETTINGS_DEST を $SETTINGS_SRC の内容に置き換えた"
 fi
 
-# ハーネスが付ける作業ブランチ名（ccr-…）は、いつ作ったセッションか読み取れないため、日時の名前へ改める。
-# リモートにまだ無いブランチだけを対象にする。push 済みなら、改名すると push 先とずれる。
+# ハーネスが付ける作業ブランチ名は、いつ作ったセッションか読み取れないため、日時の名前へ改める。
+# ハーネス側の命名は ccr-… と claude/… の両方を確認しており、今後も変わりうるため、名前では対象を絞らない。
+# 代わりに、リモートにまだ無いブランチだけを対象にする。push 済みなら、改名すると push 先とずれ、
+# リモートにある main などの既定ブランチもここで除かれる。
 # 見た目だけの処理なので、判断できないとき（リモートに届かない、同名がある）は何もしない。
 # ハーネスの記録とシステムプロンプトは起動前に決まり、古い名前のままなので、フックの出力で新しい名前を伝える。
+# 起動と再開のたびに動くため、日時の名前になっているブランチは、push 前でも付け替えない。
 if [ -n "$WORK_DIR" ] && git -C "$WORK_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  # detached HEAD ではブランチ名が空になる。
   old_branch="$(git -C "$WORK_DIR" branch --show-current)"
-  if [[ "$old_branch" == ccr-* ]]; then
+  if [ -n "$old_branch" ] && [[ ! "$old_branch" =~ ^claude-code-[0-9]{8}T[0-9]{4}$ ]]; then
     remote_rc=0
     git -C "$WORK_DIR" ls-remote --exit-code --heads origin "$old_branch" >/dev/null 2>&1 || remote_rc=$?
     # JST は夏時間が無いため UTC に9時間足せば求まり、タイムゾーンデータが無い環境でも誤らない。
