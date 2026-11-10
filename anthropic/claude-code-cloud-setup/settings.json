@@ -13,7 +13,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /opt/harness-settings && git fetch --depth 1 origin HEAD && git reset --hard FETCH_HEAD && ./anthropic/claude-code-cloud-setup/apply.sh"
+            "command": "cd /opt/harness-settings && git fetch --depth 1 origin HEAD && git reset --hard FETCH_HEAD && ./anthropic/claude-code-cloud-setup/session-start-hook.sh \"$OLDPWD\""
           }
         ]
       }
