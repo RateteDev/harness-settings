@@ -13,7 +13,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/harness-settings/anthropic/claude-code-cloud-setup/sync-skills.sh"
+            "command": "/opt/harness-settings/anthropic/claude-code-cloud-setup/session-start.sh"
           }
         ]
       }

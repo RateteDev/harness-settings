@@ -4,14 +4,19 @@
 #   環境のセットアップスクリプト（コンテナ作成時に1回、root、Claude Code 起動前）
 #     │ /opt/harness-settings へ clone して exec
 #     ▼
-#   setup.sh ─▶ settings.json を ~/.claude/settings.json へ丸ごと置く
-#                 │ SessionStart フックに sync-skills.sh を登録
-#                 ▼
+#   setup.sh ─▶ install-settings.sh ─▶ ~/.claude/settings.json
+#                 （SessionStart フックに session-start.sh を登録した設定を丸ごと置く）
+#
 #   Claude Code（セッション開始・再開のたび）
-#     └──────▶ sync-skills.sh ─▶ ~/.claude/skills
+#     └──▶ session-start.sh（クローンを最新にする）
+#            └─exec─▶ apply.sh ─┬─▶ ~/.claude/skills
+#                               └─▶ install-settings.sh ─▶ ~/.claude/settings.json
 #
 # スキルの反映はフックだけが行う。セットアップ時には反映しない。
-# 設定は起動中の Claude Code が監視しているため、書き込みは起動前のここで済ませる。
+# 設定はセットアップとフックの両方で置く。MCPサーバーの絞り込みなど起動時に効かせたい設定は
+# フックの開始より前に読まれるため、起動前のここで置く。
+# フックが置く設定は、キャッシュされた環境が古いときの補修で、置き換え後も起動中のセッションに
+# 効くかどうかは確認していない。
 #
 # settings.json はコメントを書けないので、各キーの意図はここに残す。
 # - claude.aiから自動で注入されるコネクタ・スキル・プラグインは取り込まない。
@@ -30,5 +35,4 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-mkdir -p "$HOME/.claude"
-cp "$SCRIPT_DIR/settings.json" "$HOME/.claude/settings.json"
+"$SCRIPT_DIR/install-settings.sh"
