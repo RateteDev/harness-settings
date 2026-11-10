@@ -14,10 +14,6 @@ main() {
   echo "$(date -Is) sync" >> /tmp/harness-sync.log
 
   git -C "$repo_dir" fetch --depth 1 origin HEAD
-  if [ "$(git -C "$repo_dir" rev-parse HEAD)" = "$(git -C "$repo_dir" rev-parse FETCH_HEAD)" ] \
-    && [ -d "$SKILLS_DIR" ]; then
-    return 0
-  fi
   git -C "$repo_dir" reset --hard FETCH_HEAD
 
   # 削除されたskillも反映するため、丸ごと置き換える

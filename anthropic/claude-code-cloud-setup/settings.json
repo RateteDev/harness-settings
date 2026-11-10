@@ -1,0 +1,22 @@
+{
+  "disableClaudeAiConnectors": true,
+  "syncClaudeAiSkills": false,
+  "syncClaudeAiPlugins": false,
+  "allowedMcpServers": [
+    { "serverName": "github" },
+    { "serverName": "claude-code-remote" }
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/harness-settings/anthropic/claude-code-cloud-setup/sync-skills.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
