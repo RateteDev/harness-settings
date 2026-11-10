@@ -5,10 +5,10 @@
 #     │ /opt/harness-settings へ clone して exec
 #     ▼
 #   setup.sh ─▶ install-settings.sh ─▶ ~/.claude/settings.json
-#                 （SessionStart フックに sync-skills.sh を登録した設定を丸ごと置く）
+#                 （SessionStart フックに session-start.sh を登録した設定を丸ごと置く）
 #
 #   Claude Code（セッション開始・再開のたび）
-#     └──▶ sync-skills.sh（クローンを最新にする）
+#     └──▶ session-start.sh（クローンを最新にする）
 #            └─exec─▶ apply.sh ─┬─▶ ~/.claude/skills
 #                               └─▶ install-settings.sh ─▶ ~/.claude/settings.json
 #
