@@ -1,14 +1,17 @@
 #!/bin/bash
-# クローンを origin の HEAD に揃え、skills/ を ~/.claude/skills へ丸ごと反映する。
+# SessionStart フックの入口。クローンを origin の HEAD に揃え、最新の apply.sh へ引き渡す。
 # 呼び出し元と時機は setup.sh 冒頭の図を参照。
+#
+# フックが実行するのは、環境のセットアップ時に作られたクローンのこのファイルで、
+# セットアップ結果はキャッシュされるため、環境が作り直されるまで古い版のまま動く。
+# 変更される処理をここに置くと反映が遅れるので、更新と引き渡しだけにし、処理は apply.sh に置く。
+# ファイル名は、キャッシュ済みの settings.json がこのパスを指しているため変えない。
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILLS_DIR="$HOME/.claude/skills"
-
 main() {
-  local repo_dir
-  repo_dir="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+  local script_dir repo_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  repo_dir="$(git -C "$script_dir" rev-parse --show-toplevel)"
 
   # フックが実際に動いたかを後から確認するための記録
   echo "$(date -Is) sync" >> /tmp/harness-sync.log
@@ -16,10 +19,7 @@ main() {
   git -C "$repo_dir" fetch --depth 1 origin HEAD
   git -C "$repo_dir" reset --hard FETCH_HEAD
 
-  # 削除されたskillも反映するため、丸ごと置き換える
-  rm -rf "$SKILLS_DIR"
-  mkdir -p "$SKILLS_DIR"
-  cp -r "$repo_dir/skills/." "$SKILLS_DIR/"
+  exec "$script_dir/apply.sh"
 }
 
 # このファイル自身が置かれたクローンを git reset で書き換える。
