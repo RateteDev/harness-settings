@@ -177,6 +177,8 @@ function onLine(color: string | undefined): "light" | "dark" {
 // 境界の3分は未確認である。
 const SUMMARY_MIN_WALK_MINUTES = 3
 
+const yen = (amount: number) => `${amount.toLocaleString("ja-JP")}円`
+
 const lineVar = (color: string | undefined) => (color === undefined ? "" : ` style="--line-color:${color}"`)
 
 const ICON_WALK = `<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="2.5" r="1.3" fill="currentColor" stroke="none"/><path d="M9 5.5 7.2 9.2 9.2 12 8.6 15M7.2 9.2 4.6 11.2M9 6.2 11.6 8.2M9.2 12l2.3 3"/></svg>`
@@ -261,7 +263,7 @@ function renderSummary(route: Route): string {
   const from =
     rides.length === 0 ? "" : `<p class="summary-meta">${esc(rides[0].発.駅)}から ${esc(rides[0].発.時刻)}</p>`
   const walk = walkMinutes === 0 ? "" : `<span class="nowrap">${ICON_WALK} ${walkMinutes} 分</span>`
-  return `<section class="summary"><h1 class="summary-time"><span class="nowrap">${esc(route.出発)} - ${esc(route.到着)}</span> <small class="nowrap">（${elapsed(route.出発, route.到着)} 分）</small></h1><ol class="summary-legs">${legs}</ol>${from}<p class="summary-meta"><span class="fare-line"><span>${route.運賃}円</span>${walk}</span></p></section>`
+  return `<section class="summary"><h1 class="summary-time"><span class="nowrap">${esc(route.出発)} - ${esc(route.到着)}</span> <small class="nowrap">（${elapsed(route.出発, route.到着)} 分）</small></h1><ol class="summary-legs">${legs}</ol>${from}<p class="summary-meta"><span class="fare-line"><span>${yen(route.運賃)}</span>${walk}</span></p></section>`
 }
 
 function render(route: Route, css: string): string {
@@ -282,7 +284,7 @@ ${css}</style>
 <header class="route-head"><p><span>出発地:</span> ${esc(route.出発地.名称)}</p><p><span>目的地:</span> ${esc(route.目的地.名称)}</p></header>
 ${renderSummary(route)}
 <ol class="timeline">${timeline}</ol>
-<p class="fare-note">料金: ${route.運賃}円</p>
+<p class="fare-note">料金: ${yen(route.運賃)}</p>
 </main>
 </body>
 </html>

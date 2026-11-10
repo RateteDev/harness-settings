@@ -263,6 +263,11 @@
 }
 
 @layer design {
+  .route {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
   .route-head {
     border-bottom-color: var(--color-divider);
   }
