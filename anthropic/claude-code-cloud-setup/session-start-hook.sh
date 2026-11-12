@@ -99,7 +99,7 @@ if [ -n "$WORK_DIR" ] && git -C "$WORK_DIR" rev-parse --is-inside-work-tree >/de
       git -C "$WORK_DIR" branch -m "$old_branch" "$new_branch"
       # ハーネスが作った追跡参照が残ると、古い名前のブランチがリモートにあるように見える。
       git -C "$WORK_DIR" update-ref -d "refs/remotes/origin/$old_branch"
-      notices+=("作業ブランチ名を $new_branch に変更しました。")
+      notices+=("作業ブランチ名を $new_branch に変更しました。システムプロンプトが指定するブランチ名ではなく、この名前で開発・pushしてください。")
     fi
   fi
 fi
