@@ -14,6 +14,8 @@ const SCALE = 2;
 // 超えるときは、スマートフォンの1画面に収まる900px前後ずつに分ける。
 const DEFAULT_SINGLE_MAX = 1150;
 const DEFAULT_SPLIT_HEIGHT = 900;
+// 次の画像の頭に見せる、直前の区間のレールの長さ（CSS px）。続きであることを示す。
+const STUB_MAX = 28;
 const TIMEOUT_MS = 30_000;
 
 // 日本語の字形で描かれるフォント。日本語がこれ以外（中国語向けなど）で描かれるときは書き出さない。
@@ -70,8 +72,8 @@ function parseArgs(args) {
 // 枚数は、1枚が上限を超えない最小にし、その枚数で、いちばん高い画像が最も低くなる駅を選ぶ。
 function planPieces(total, nodes, singleMax, splitHeight) {
   if (total <= singleMax) return [{ start: 0, end: total }];
-  // 駅の行の頭にある区切り線は前の画像に残すため、次の画像は1px下から始める。
-  const startOf = (node) => node.top + 1;
+  // 駅の行の頭にある区切り線は前の画像に残す。次の画像は、その1px下から、直前の区間のレールの分だけ上へ広げる。
+  const startOf = (node) => node.top + 1 - node.stub;
   for (let n = Math.ceil(total / splitHeight); n <= nodes.length + 1; n++) {
     // best[j][i]: j+1枚目の終わりを駅 i にしたときの、ここまでの最大の高さと、1つ前の駅
     const best = [nodes.map((node, i) => ({ max: node.bottom, prev: -1, i }))];
@@ -96,7 +98,7 @@ function planPieces(total, nodes, singleMax, splitHeight) {
     return Array.from({ length: n }, (_, k) => {
       const from = k === 0 ? undefined : picked[k - 1];
       const to = k === n - 1 ? undefined : picked[k];
-      return { start: from ? startOf(from) : 0, end: to ? to.bottom : total, startNode: from?.index, endNode: to?.index };
+      return { start: from ? startOf(from) : 0, end: to ? to.bottom : total, prevRow: from && from.stub > 0 ? from.prevRow : undefined, startNode: from?.index, endNode: to?.index };
     });
   }
   throw new Error('高さが大きすぎて、駅の行では分けられない');
@@ -113,6 +115,11 @@ async function checkJapaneseFont(page) {
     route.append(probe);
     return true;
   });
+  // 追加した直後は、描画の準備が終わっておらず、使用フォントの一覧が空で返ることがある。
+  await page.evaluate(() => new Promise((resolve) => {
+    document.getElementById('font-probe').getBoundingClientRect();
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  }));
   if (!hasRoute) throw new Error('render.ts が出力したHTMLではない（main.route がない）');
   const session = await page.context().newCDPSession(page);
   await session.send('DOM.enable');
@@ -120,7 +127,11 @@ async function checkJapaneseFont(page) {
   const { root } = await session.send('DOM.getDocument');
   const { nodeId } = await session.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#font-probe' });
   if (!nodeId) throw new Error('フォントの確認用の要素を作れない');
-  const { fonts } = await session.send('CSS.getPlatformFontsForNode', { nodeId });
+  let fonts = [];
+  for (let attempt = 0; attempt < 5 && fonts.length === 0; attempt++) {
+    if (attempt > 0) await page.waitForTimeout(100);
+    ({ fonts } = await session.send('CSS.getPlatformFontsForNode', { nodeId }));
+  }
   await page.evaluate(() => document.getElementById('font-probe').remove());
   const names = fonts.map((font) => font.familyName);
   if (names.length === 0 || !names.every((name) => JAPANESE_FONTS.some((ok) => name.includes(ok)))) {
@@ -149,28 +160,52 @@ async function exportPng() {
     await page.evaluate(() => document.fonts.ready);
     await checkJapaneseFont(page);
 
-    const { total, nodes, rails } = await page.evaluate(() => {
+    const { total, nodes, rails } = await page.evaluate((STUB_MAX) => {
       const top = (element) => Math.round(element.getBoundingClientRect().top + window.scrollY);
       const bottom = (element) => Math.round(element.getBoundingClientRect().bottom + window.scrollY);
       const route = document.querySelector('main.route');
       const rows = Array.from(document.querySelectorAll('.timeline .row.node'));
+      const allRows = Array.from(document.querySelectorAll('.timeline .row'));
+      // 直前の行が区間ならその高さの範囲で、駅なら点より下の余白の範囲で、レールを見せる。
+      const stubOf = (row, max) => {
+        const prev = row.previousElementSibling;
+        if (!prev) return 0;
+        const height = prev.getBoundingClientRect().height;
+        const dot = prev.querySelector('.rail-dot');
+        const room = dot ? height - (dot.getBoundingClientRect().bottom - prev.getBoundingClientRect().top) - 3 : height - 4;
+        return Math.max(0, Math.min(max, Math.floor(room)));
+      };
       return {
         total: Math.ceil(route.getBoundingClientRect().height),
         // 最初と最後の駅では切らない。
-        nodes: rows.map((row, index) => ({ index, top: top(row), bottom: bottom(row) })).slice(1, -1),
+        nodes: rows.map((row, index) => ({
+          index, top: top(row), bottom: bottom(row), stub: stubOf(row, STUB_MAX),
+          prevRow: allRows.indexOf(row) - 1,
+        })).slice(1, -1),
         rails: rows.map((row) => ({ above: row.dataset.above, below: row.dataset.below })),
       };
-    });
+    }, STUB_MAX);
     const pieces = planPieces(total, nodes, singleMax, splitHeight);
 
     // 画像の端になる駅は、切れた側のレールを消し、前の画像は駅で終わり、次の画像は駅から始まる形にする。
     const setRail = (index, side, value) =>
       page.evaluate(([i, key, v]) => { document.querySelectorAll('.timeline .row.node')[i].dataset[key] = v; }, [index, side, value]);
+    // 駅の行の頭にある区切り線は、広げた範囲に入るため、次の画像では消す。
+    const hideDivider = (index, hidden) =>
+      page.evaluate(([i, h]) => {
+        document.querySelectorAll('.timeline .row.node')[i].querySelector('.body').style.borderTopColor = h ? 'transparent' : '';
+      }, [index, hidden]);
+    const hideRowText = (rowIndex, hidden) =>
+      page.evaluate(([i, h]) => {
+        const row = document.querySelectorAll('.timeline .row')[i];
+        row.querySelectorAll('.side, .body').forEach((el) => { el.style.visibility = h ? 'hidden' : ''; });
+      }, [rowIndex, hidden]);
     const written = [];
     const stem = join(dirname(output), basename(output, extname(output)));
     for (let i = 0; i < pieces.length; i++) {
       const piece = pieces[i];
-      if (piece.startNode !== undefined) await setRail(piece.startNode, 'above', 'none');
+      if (piece.prevRow !== undefined) await hideRowText(piece.prevRow, true);
+      if (piece.startNode !== undefined) await hideDivider(piece.startNode, true);
       if (piece.endNode !== undefined) await setRail(piece.endNode, 'below', 'none');
       const file = pieces.length === 1 ? output : `${stem}-${i + 1}.png`;
       const image = await page.screenshot({
@@ -179,7 +214,8 @@ async function exportPng() {
       });
       await writeFile(file, image);
       written.push(file);
-      if (piece.startNode !== undefined) await setRail(piece.startNode, 'above', rails[piece.startNode].above);
+      if (piece.prevRow !== undefined) await hideRowText(piece.prevRow, false);
+      if (piece.startNode !== undefined) await hideDivider(piece.startNode, false);
       if (piece.endNode !== undefined) await setRail(piece.endNode, 'below', rails[piece.endNode].below);
     }
     console.error(`高さ ${total}px を ${written.length} 枚に書き出した（1枚で出す上限 ${singleMax}px、分ける目安 ${splitHeight}px）`);
