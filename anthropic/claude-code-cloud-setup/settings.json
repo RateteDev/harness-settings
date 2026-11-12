@@ -2,6 +2,7 @@
   "disableClaudeAiConnectors": true,
   "syncClaudeAiSkills": false,
   "syncClaudeAiPlugins": false,
+  "attribution": false,
   "allowedMcpServers": [
     { "serverName": "github" },
     { "serverName": "claude-code-remote" }
@@ -9,7 +10,7 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "startup|resume",
+        "matcher": "startup",
         "hooks": [
           {
             "type": "command",

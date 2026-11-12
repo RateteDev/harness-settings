@@ -9,7 +9,7 @@
 #   session-start-hook.sh（引数なし）─┬─▶ ~/.claude/skills
 #                                    └─▶ ~/.claude/settings.json
 #
-#   Claude Code（セッション開始・再開のたび）
+#   Claude Code（セッション開始のたび）
 #     └─ SessionStart フック（settings.json のコマンド）
 #          └─ クローンを最新にして session-start-hook.sh を実行（引数は作業リポジトリ）
 #               ─┬─▶ ~/.claude/skills
@@ -38,6 +38,10 @@
 # - 許可リストの名前はホストが渡す設定上のキー名で、間違えるとgithubが使えなくなる。
 #   claude-code-remoteも同時に消えるので、セッション内から環境を直せなくなる。
 # - フックのcommandが指すディレクトリは、setup-script.sh の REPO_DIR と一致させる。
+# - フックを再開時に動かさないのは、作業中のセッションにスキルや設定の変更を混ぜないため。
+#   取り込みたいときは、フックと同じコマンドを手動で実行する。
+# - attribution を false にするのは、Claude Code本体がコミットとPRに帰属表記を付けるよう
+#   system-reminder で誘導するのを止めるため。
 #
 # SessionStart フックの非ゼロ終了は、セッションの起動を止めずエラーとして表示されるだけである（公式文書 hooks の終了コードの項）。
 # 失敗に気づけるよう、握りつぶさず非ゼロで終了する。
@@ -75,7 +79,7 @@ fi
 # リモートにある main などの既定ブランチもここで除かれる。
 # 見た目だけの処理なので、判断できないとき（リモートに届かない、同名がある）は何もしない。
 # ハーネスの記録とシステムプロンプトは起動前に決まり、古い名前のままなので、フックの出力で新しい名前を伝える。
-# 起動と再開のたびに動くため、日時の名前になっているブランチは、push 前でも付け替えない。
+# 手動で取り込み直したときにも動くため、日時の名前になっているブランチは、push 前でも付け替えない。
 if [ -n "$WORK_DIR" ] && git -C "$WORK_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   # detached HEAD ではブランチ名が空になる。
   old_branch="$(git -C "$WORK_DIR" branch --show-current)"
