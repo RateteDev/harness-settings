@@ -9,67 +9,61 @@ metadata:
 
 # justfile規約
 
-## このスキルの目的
+## 目的
 
-開発コマンドが手元のスクリプト、`package.json`の`scripts`、CIの設定に散ると、手元とCIで違う検査が走り、エージェントも使えるコマンドを見つけられない。
-`justfile`をコマンドの入口に揃え、`just --list`を見れば何ができるか分かり、手元とCIで同じ検査が走るようにする。
+開発コマンドの入口をリポジトリルートの`justfile`に一本化する。
+手元とCIで同一の検査を実行可能にし、開発者やエージェントが`just --list`を見るだけで実行可能な操作を迷わず把握できるようにする。
 
-## あるべき状態
+## 設計原則
 
-### 入口
+### 1. エントリポイントの統一
+- **CIとの一致**: すべての開発コマンドはルートの`justfile`に集約し、CIのステップからはjust recipeを呼ぶだけにする。
+- **ローカルファースト**: すべての自動検査を実行する`just ci-local`を用意する。ローカルでの事前担保を基本としリモートCIは補助と位置づける。
 
-- 開発コマンドはリポジトリのルートの`justfile`に集め、CIのstepはjustのrecipeを呼ぶだけにする。
-  手元の`just`でCIと同じ検査を再現できるようにするためである。
-- 自動検査はすべて`just ci-local`から実行できるようにし、これを主な担保とする。
-  リモートCIは保険と位置づける。
+### 2. recipeの命名・構成
+- **命名規則**: `{app}-{action}` 形式とし、`[group]` 属性でアプリごとに分類する。
+- **checkとfixの対定義**:
+  - `{app}-check`: lint・format検証・型検査などを実行（ファイル変更は行わない）。CIやpre-commitで使用。
+  - `{app}-fix`: 自動修正可能な処理をすべて実行。
+- **内部用recipe**: 名前を `_` で始め、`[private]` 属性を付与してリストから隠蔽する。
+- **引数**: 必ずデフォルト値を設定する。引数が複雑化する場合は別recipeに分割する。
+- **全体検査**: リポジトリ全体で常に満たすべき条件は `repo-checks` にまとめ、アプリ個別・パス依存の検査は各 `{app}-check` に配置する。
 
-### recipeの名前と構成
+### 3. コマンド説明（`just --list`）
+- 各recipeには一覧表示だけで目的が伝わる簡潔な1行説明を付ける。
+- 複数行の解説が必要な場合は、`[doc("1行説明")]` で一覧用の文言を指定し、詳細や背景は直前の通常コメントとして残す。
 
-- recipeは`{app}-{action}`で名付け、`[group]`でアプリごとにまとめる。
-- アプリごとに`{app}-check`と`{app}-fix`を対で用意する。
-  `check`はファイルを書き換えずにlint・format検査・型検査を行い、CIとpre-commitから呼ぶ。
-  `fix`は自動修正できる処理をすべて行う。
-- 外部に見せないrecipeには`[private]`を付け、名前を`_`で始める。
-- 引数にはdefaultを設け、引数が複雑になる場合はrecipeを分ける。
-- `repo-checks`には、そのリポジトリで常に成立すべき条件だけを置き、特定パスの変更時だけ要る検査は各アプリの`check`に置く。
+### 4. エラーハンドリング
+- **全体設定**: ファイル先頭に `set shell := ["bash", "-euo", "pipefail", "-c"]` を記述する。
+- **Shebang recipe**: bashを使うShebang recipe内でも必ず `set -euo pipefail` を明記する（`set shell` の設定が引き継がれないため）。
+- **並列実行時のエラー検知**: バックグラウンド処理のPIDを個別に `wait` し、いずれかの失敗を確実に検知する（引数なし `wait` は全プロセスの終了後に常に終了ステータス0を返すため使用禁止）。
 
-### just --listに出る説明
+## 実装例
 
-- 各recipeの説明は、それだけで意味の通る一行にする。
-  `just --list`は直前のcommentの最終行だけを表示し、コマンドを見つける唯一の面だからである。
-- commentが複数行あるrecipeは`[doc]`で一行の説明を明示し、commentは理由の記録として残す。
+### 並列実行recipe
 
-### 失敗を見逃さない
+```just
+[doc('ローカルCIを一括実行する')]
+ci-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just repo-checks
 
-- ファイルの先頭で`set shell := ["bash", "-euo", "pipefail", "-c"]`を宣言する。
-- bashのshebang recipeは、本文でも`set -euo pipefail`を設定する。
-  `set shell`はshebang recipeに届かず、途中で失敗したコマンドが見過ごされるためである。
-- 複数の検査を並列に走らせるrecipeは、ジョブごとのPIDを個別に`wait`する。
-  引数なしの`wait`は常に0で終わり、どれかが落ちても成功に見えるためである。
+    pids=()
+    just back-ci & pids+=($!)
+    just front-ci & pids+=($!)
 
-## 手段
+    failed=0
+    for pid in "${pids[@]}"; do
+        wait "$pid" || failed=1
+    done
+    exit $failed
+```
 
-- 並列実行のrecipeは次の形で書く。
+### Cloudflare Workers Buildsでの利用
 
-  ```just
-  [doc('Run local CI')]
-  ci-local:
-      #!/usr/bin/env bash
-      set -euo pipefail
-      just repo-checks
-      pids=()
-      just back-ci & pids+=($!)
-      just front-ci & pids+=($!)
-      failed=0
-      for pid in "${pids[@]}"; do
-          wait "$pid" || failed=1
-      done
-      exit $failed
-  ```
+環境内にjustが存在しないためビルドコマンドでバージョンを指定して導入する。
 
-- Cloudflare Workers Buildsでjustを使う場合は、build commandで公式のインストーラに`--tag`で版数を渡して入れる。
-  Workers Buildsの環境にはjustが無く、版を指定しないと最新が入るためである。
-
-  ```sh
-  curl -sSf https://just.systems/install.sh | bash -s -- --tag <版> --to ./bin && PATH=$PWD/bin:$PATH just build
-  ```
+```sh
+curl -sSf https://just.systems/install.sh | bash -s -- --tag <version> --to ./bin && PATH=$PWD/bin:$PATH just build
+```

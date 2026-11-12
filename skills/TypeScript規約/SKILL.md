@@ -9,30 +9,39 @@ metadata:
 
 # TypeScript規約
 
-## このスキルの目的
+## 目的
 
-ツール選定をその場の判断で変えると、プロジェクトごとに設定と依存が分かれ、実行環境やテストの挙動も揃わない。
-ランタイムからパッケージ初期化までを固定し、同じ選定を繰り返さずに済むようにする。
+ツール選定とプロジェクト構成を統一し、環境差分や設定の重複管理を防ぐ。
 
-## あるべき状態
+## 標準ツール
 
-### ツール
+以下のツール選定に従う。特別な理由がない限り変更しない。
 
-- ツールは次の表のものを使う。
+| 用途 | 採用ツール | 備考 |
+|---|---|---|
+| ランタイム・パッケージ管理・バンドル | **Bun** | - |
+| Lint・Format | **Biome** | 設定ファイルは `biome.json` のみ。依存は `@biomejs/biome` のみ追加する。 |
+| テスト | **`bun:test`** | Bun組み込み機能を使用する。 |
+| ロガー | **Pino** | 開発環境のログ整形用として `pino-pretty` を devDependencies に追加する。 |
 
-  | 用途 | 使うもの |
-  |---|---|
-  | Runtime・パッケージ管理・バンドル | Bun |
-  | Lint / Format | Biome（設定は`biome.json`1つ、依存は`@biomejs/biome`のみ） |
-  | Test | Bun組み込みの`bun:test` |
-  | Logger | pino（開発時の整形には`pino-pretty`をdev依存に入れる） |
+## 設定ルール
 
-- `tsconfig.json`の`compilerOptions.types`に`"bun-types"`を入れる。
-  `bun:test`の型は`@types/bun`に含まれるが、これが無いと`describe`・`expect`・`test`などが型エラーになるためである。
+### tsconfig.json
+
+`bun:test` のグローバル型（`describe`, `test`, `expect` など）を有効化するため、以下を指定する。
+
+```json
+{
+  "compilerOptions": {
+    "types": ["bun-types"]
+  }
+}
+```
 
 ### package.json
 
-- `bun init`などが生成した`package.json`の`scripts`は削除する。
-  開発コマンドはルートの`justfile`に集約しており、各packageに置くと二重管理になるためである。
-- `package.json`には、`name`・`version`・`type`・`dependencies`・`devDependencies`など、実際に機能するフィールドだけを残す。
-- 公開しないpackageには`main`・`module`・`keywords`・`author`・`license`・`description`は置かず、説明はREADMEに書く。
+プロジェクトの設定を最小限かつ一元管理された状態に保つ。
+
+- **`scripts` は定義しない**: コマンドの二重管理を防ぐため、開発・実行コマンドはルートの `justfile` に集約する。`bun init` 等で生成された `scripts` は削除する。
+- **機能するフィールドのみ記載する**: `name`, `version`, `type`, `dependencies`, `devDependencies` などの必須項目に絞る。
+- **非公開パッケージの不要なメタデータは削除する**: npm等に公開しないパッケージには、`main`, `module`, `keywords`, `author`, `license`, `description` を記載しない（説明は `README.md` に記載する）。
