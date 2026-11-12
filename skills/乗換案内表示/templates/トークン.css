@@ -1,0 +1,36 @@
+@layer tokens, structure, design;
+
+/* 値はGoogleマップの乗り換え案内の画面を測った近似値。テーマはライトのみ。 */
+@layer tokens {
+  :root {
+    --color-bg: #ffffff;
+    --color-text: #202020;
+    --color-text-sub: #5d5d5d;
+    --color-divider: #e3e3e3;
+    --color-walk: #4aa6f8;
+    --color-ontime: #188038;
+    --color-line-default: #70757a;
+    --color-on-line-light: #ffffff;
+    --color-on-line-dark: #202020;
+  }
+}
+
+@layer structure {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: "Roboto", "Noto Sans JP", "Noto Sans CJK JP", "Hiragino Sans", "Yu Gothic", "Meiryo", "IPAexGothic", "IPAGothic", sans-serif;
+  }
+}
+
+@layer design {
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+}
