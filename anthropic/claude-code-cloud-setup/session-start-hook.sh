@@ -1,5 +1,5 @@
 #!/bin/bash
-# SessionStart フックの本体。skills/ と settings.json を ~/.claude へ丸ごと反映し、作業ブランチの名前を整える。
+# SessionStart フックの本体。skills/coding-agent/ と settings.json を ~/.claude へ丸ごと反映し、作業ブランチの名前を整える。
 # settings.json は内容が同じなら置き換えない。引数は、作業リポジトリのディレクトリ（任意）。
 # Claude Code on the web のクラウド環境を組み立てる流れの要でもあるため、全体の図をここに置く。
 #
@@ -52,6 +52,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+# skills/ の直下には、コーディングエージェント向けではないスキルも置く。反映するのは coding-agent/ の下だけにする。
+SKILLS_SRC="$repo_dir/skills/coding-agent"
 SKILLS_DIR="$HOME/.claude/skills"
 SETTINGS_SRC="$SCRIPT_DIR/settings.json"
 SETTINGS_DEST="$HOME/.claude/settings.json"
@@ -64,10 +66,12 @@ notices=("ユーザーレベルのスキルと設定ファイルを、リポジ�
 # 実際に動いたかを後から確認するための記録。セットアップ時にも1行出る。
 echo "$(date -Is) sync" >> /tmp/harness-sync.log
 
-# 削除されたskillも反映するため、丸ごと置き換える
+# 削除されたskillも反映するため、丸ごと置き換える。
+# 反映元が無いまま消すと、スキルが空の状態で起動するため、消す前に止める。
+[ -d "$SKILLS_SRC" ] || { echo "session-start-hook: $SKILLS_SRC がありません" >&2; exit 1; }
 rm -rf "$SKILLS_DIR"
 mkdir -p "$SKILLS_DIR"
-cp -r "$repo_dir/skills/." "$SKILLS_DIR/"
+cp -r "$SKILLS_SRC/." "$SKILLS_DIR/"
 
 # 空白や改行だけの違いを差分とみなして書き換えないよう、キーを整列した JSON で比べる。
 # 壊れた JSON は差分として置き換える。
