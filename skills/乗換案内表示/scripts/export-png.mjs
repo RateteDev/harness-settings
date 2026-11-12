@@ -1,6 +1,11 @@
 // render.ts が出力したHTMLを、スマートフォンで見るPNGに書き出す。
-// 使い方: node export-png.mjs <入力.html> <出力.png> [--single-max 1150] [--split-height 900]
 // 前提: playwright-core（または playwright）と Chromium。日本語用のフォントが要る（Noto Sans JP が望ましい）。
+//
+// render.ts の出力との取り決め（見た目は templates/乗換案内.css が持つ）:
+//   main.route             経路の全体。幅と高さの基準にする
+//   .timeline > .row       タイムラインの行。.point が地点で、画像はここで分ける
+//   data-ghost="above"     画像の上端に見せる、切れ目の地点の前の行に付ける（下端は "below"）
+//   data-piece-top         分けた画像の先頭になる地点に付ける
 import { createRequire } from 'node:module';
 import { access, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -14,8 +19,8 @@ const SCALE = 2;
 // 超えるときは、スマートフォンの1画面に収まる900px前後ずつに分ける。
 const DEFAULT_SINGLE_MAX = 1150;
 const DEFAULT_SPLIT_HEIGHT = 900;
-// 画像の端に見せる、隣の区間のレールの長さ（CSS px）。前の画像の下と次の画像の頭に出し、続きであることを示す。
-const STUB_MAX = 28;
+// 画像の端に見せる、隣の行のレールの長さ（CSS px）。
+const STUB = 28;
 const TIMEOUT_MS = 30_000;
 
 // 日本語の字形で描かれるフォント。日本語がこれ以外（中国語向けなど）で描かれるときは書き出さない。
@@ -24,104 +29,145 @@ const JAPANESE_FONTS = [
   'Yu Gothic', '游ゴシック', 'Meiryo', 'メイリオ', 'BIZ UD', 'M PLUS', 'Source Han Sans JP', 'TakaoGothic', 'VL Gothic',
 ];
 
-const usage = '使い方: node export-png.mjs <入力.html> <出力.png> [--single-max 1150] [--split-height 900]';
+const USAGE = '使い方: node export-png.mjs <入力.html> <出力.png> [--single-max 1150] [--split-height 900]';
+const HELP = `${USAGE}
+幅${WIDTH}pxを${SCALE}倍の解像度で書き出す。高さが ${DEFAULT_SINGLE_MAX}px を超えるときは、${DEFAULT_SPLIT_HEIGHT}px 前後ずつ地点の行で複数枚に分け、出力名の末尾に -1、-2 を付ける。切れ目の地点は、前の画像の最後と次の画像の最初の両方に出す。
+書き出したファイルのパスを1行ずつ標準出力へ書く。`;
 
-async function loadChromium() {
-  try {
-    return (await import('playwright-core')).chromium;
-  } catch (error) {
-    if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error;
+// このスクリプトの近くの node_modules と NODE_PATH を探し、なければ bun のグローバルの導入先を探す。
+// import ではなく require で探すのは、import が NODE_PATH を見ないため。
+function loadChromium() {
+  const origins = [import.meta.url, pathToFileURL(join(homedir(), '.bun/install/global/'))];
+  for (const origin of origins) {
+    for (const name of ['playwright-core', 'playwright']) {
+      try {
+        return createRequire(origin)(name).chromium;
+      } catch (error) {
+        if (error.code !== 'MODULE_NOT_FOUND') throw error;
+      }
+    }
   }
-  const require = createRequire(import.meta.url);
-  for (const name of ['playwright-core', 'playwright']) {
-    try {
-      return require(name).chromium;
-    } catch { /* 次の候補へ */ }
-  }
-  const fallback = join(homedir(), '.bun/install/global/node_modules/playwright-core/index.mjs');
-  try {
-    return (await import(pathToFileURL(fallback).href)).chromium;
-  } catch {
-    throw new Error('playwright-core が見つからない。playwright-core と Chromium を導入する。');
-  }
+  throw new Error('playwright-core が見つからない。playwright-core と Chromium を導入する。');
 }
 
 function parseArgs(args) {
-  const positional = [];
+  const paths = [];
   const options = { singleMax: DEFAULT_SINGLE_MAX, splitHeight: DEFAULT_SPLIT_HEIGHT };
+  const names = { '--single-max': 'singleMax', '--split-height': 'splitHeight' };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--single-max' || arg === '--split-height') {
+    if (arg in names) {
       const value = Number(args[++i]);
       if (!Number.isFinite(value) || value <= 0) throw new Error(`${arg} には正の数を指定する`);
-      if (arg === '--single-max') options.singleMax = value;
-      else options.splitHeight = value;
+      options[names[arg]] = value;
     } else if (arg.startsWith('-')) {
-      throw new Error(`未知の指定: ${arg}\n${usage}`);
+      throw new Error(`未知の指定: ${arg}\n${USAGE}`);
     } else {
-      positional.push(arg);
+      paths.push(arg);
     }
   }
-  if (positional.length !== 2) throw new Error(usage);
+  if (paths.length !== 2) throw new Error(USAGE);
   if (options.splitHeight > options.singleMax) throw new Error('--split-height は --single-max 以下にする');
-  return { input: resolve(positional[0]), output: resolve(positional[1]), ...options };
+  const [input, output] = paths.map((path) => resolve(path));
+  if (!/\.html?$/i.test(input)) throw new Error('入力は .html にする');
+  if (!/\.png$/i.test(output)) throw new Error('出力は .png にする');
+  return { input, output, ...options };
 }
 
-// 高さが上限以内なら1枚。超えるときは、地点の行で分ける。
-// 切れ目の地点は、前の画像の最後と次の画像の最初の両方に出し、次の画像をその地点から再開する。
-// 枚数は、1枚が上限を超えない最小にし、その枚数で、いちばん高い画像が最も低くなる地点を選ぶ。
-function planPieces(total, nodes, singleMax, splitHeight) {
-  if (total <= singleMax) return [{ start: 0, end: total }];
-  // 地点の行の頭にある区切り線は前の画像に残す。次の画像は、その1px下から、直前の区間のレールの分だけ上へ広げる。
-  const startOf = (node) => node.top + 1 - node.stub;
-  const endOf = (node) => node.bottom + node.stubAfter;
-  for (let n = Math.ceil(total / splitHeight); n <= nodes.length + 1; n++) {
-    // best[j][i]: j+1枚目の終わりを地点 i にしたときの、ここまでの最大の高さと、1つ前の地点
-    const best = [nodes.map((node, i) => ({ max: endOf(node), prev: -1, i }))];
-    for (let j = 1; j < n - 1; j++) {
-      best.push(nodes.map((node, i) => {
-        let pick = { max: Infinity, prev: -1, i };
-        for (let p = 0; p < i; p++) {
-          const max = Math.max(best[j - 1][p].max, endOf(node) - startOf(nodes[p]));
-          if (max < pick.max) pick = { max, prev: p, i };
-        }
-        return pick;
-      }));
-    }
-    let last = { max: Infinity, i: -1 };
-    nodes.forEach((node, i) => {
-      const max = Math.max(best[n - 2][i].max, total - startOf(node));
-      if (max < last.max) last = { max, i };
-    });
-    if (last.i < 0 || last.max > singleMax) continue;
-    const picked = [];
-    for (let j = n - 2, i = last.i; j >= 0; i = best[j][i].prev, j--) picked.unshift(nodes[i]);
-    return Array.from({ length: n }, (_, k) => {
-      const from = k === 0 ? undefined : picked[k - 1];
-      const to = k === n - 1 ? undefined : picked[k];
-      return { start: from ? startOf(from) : 0, end: to ? endOf(to) : total, prevRow: from && from.stub > 0 ? from.prevRow : undefined, nextRow: to && to.stubAfter > 0 ? to.nextRow : undefined, startNode: from?.index };
+// 画像を分けられる場所。最初と最後を除く地点の行で分け、その地点を前の画像の最後と次の画像の最初の両方に出す。
+// end は前の画像の終わり、start は次の画像の始まりで、どちらも隣の行のレールを STUB だけ含める。
+function cutsOf(rows) {
+  const points = rows.filter((row) => row.point).slice(1, -1);
+  return points.map(({ index }) => {
+    const [before, row, after] = [rows[index - 1], rows[index], rows[index + 1]];
+    return {
+      index,
+      start: row.top - Math.min(STUB, before.bottom - before.top),
+      end: row.bottom + Math.min(STUB, after.bottom - after.top),
+    };
+  });
+}
+
+// 切れ目を count - 1 個選び、いちばん高い画像が最も低くなる分け方を返す。
+function lowestSplit(total, cuts, count) {
+  const lower = (a, b) => (a && a.tallest <= b.tallest ? a : b);
+  const extend = (plan, cut) => ({
+    tallest: Math.max(plan.tallest, cut.end - plan.cuts.at(-1).start),
+    cuts: [...plan.cuts, cut],
+  });
+  // plans[i]: i 番目の切れ目で画像を終えるまでの、最良の分け方。その切れ目より前で選べないときは undefined
+  let plans = cuts.map((cut) => ({ tallest: cut.end, cuts: [cut] }));
+  for (let piece = 2; piece < count; piece++) {
+    const previous = plans;
+    plans = cuts.map((cut, i) =>
+      previous.slice(0, i).filter(Boolean).map((plan) => extend(plan, cut)).reduce(lower, undefined));
+  }
+  return plans
+    .filter(Boolean)
+    .map((plan) => ({ ...plan, tallest: Math.max(plan.tallest, total - plan.cuts.at(-1).start) }))
+    .reduce(lower, undefined);
+}
+
+// 高さが上限以内なら1枚。超えるときは、1枚が上限を超えない最小の枚数で分ける。
+function planPieces(total, cuts, singleMax, splitHeight) {
+  if (total <= singleMax) return [{ start: 0, end: total, marks: [] }];
+  for (let count = Math.ceil(total / splitHeight); count <= cuts.length + 1; count++) {
+    const split = lowestSplit(total, cuts, count);
+    if (split === undefined || split.tallest > singleMax) continue;
+    return Array.from({ length: count }, (_, i) => {
+      const [from, to] = [split.cuts[i - 1], split.cuts[i]];
+      return {
+        start: from?.start ?? 0,
+        end: to?.end ?? total,
+        marks: [
+          ...(from ? [[from.index - 1, 'data-ghost', 'above'], [from.index, 'data-piece-top', '']] : []),
+          ...(to ? [[to.index + 1, 'data-ghost', 'below']] : []),
+        ],
+      };
     });
   }
   throw new Error('高さが大きすぎて、地点の行では分けられない');
 }
 
-async function checkJapaneseFont(page) {
-  const hasRoute = await page.evaluate(() => {
+async function measure(page) {
+  const layout = await page.evaluate(() => {
     const route = document.querySelector('main.route');
-    if (!route) return false;
+    if (!route) return undefined;
+    const rows = Array.from(route.querySelectorAll('.timeline > .row'), (row, index) => {
+      const box = row.getBoundingClientRect();
+      return {
+        index,
+        point: row.classList.contains('point'),
+        top: Math.round(box.top + window.scrollY),
+        bottom: Math.round(box.bottom + window.scrollY),
+      };
+    });
+    return { total: Math.ceil(route.getBoundingClientRect().height), rows };
+  });
+  if (!layout) throw new Error('render.ts が出力したHTMLではない（main.route がない）');
+  return layout;
+}
+
+const setMarks = (page, marks, on) =>
+  page.evaluate(([marks, on]) => {
+    const rows = document.querySelectorAll('.timeline > .row');
+    for (const [index, name, value] of marks) {
+      if (on) rows[index].setAttribute(name, value);
+      else rows[index].removeAttribute(name);
+    }
+  }, [marks, on]);
+
+async function checkJapaneseFont(page) {
+  await page.evaluate(() => {
     const probe = document.createElement('span');
     probe.id = 'font-probe';
     probe.textContent = '直骨角令';
     probe.style.cssText = 'position:absolute;left:-9999px;top:0';
-    route.append(probe);
-    return true;
+    document.querySelector('main.route').append(probe);
+    // 追加した直後は、描画の準備が終わっておらず、使用フォントの一覧が空で返ることがある。
+    probe.getBoundingClientRect();
+    return new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
   });
-  if (!hasRoute) throw new Error('render.ts が出力したHTMLではない（main.route がない）');
-  // 追加した直後は、描画の準備が終わっておらず、使用フォントの一覧が空で返ることがある。
-  await page.evaluate(() => new Promise((resolve) => {
-    document.getElementById('font-probe').getBoundingClientRect();
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  }));
   const session = await page.context().newCDPSession(page);
   await session.send('DOM.enable');
   await session.send('CSS.enable');
@@ -140,100 +186,44 @@ async function checkJapaneseFont(page) {
   }
 }
 
-async function exportPng() {
-  const args = process.argv.slice(2);
-  if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
-    console.log(`${usage}\n幅${WIDTH}pxを${SCALE}倍の解像度で書き出す。高さが ${DEFAULT_SINGLE_MAX}px を超えるときは、${DEFAULT_SPLIT_HEIGHT}px 前後ずつ地点の行で複数枚に分け、出力名の末尾に -1、-2 を付ける。切れ目の地点は、前の画像の最後と次の画像の最初の両方に出す。\n書き出したファイルのパスを1行ずつ標準出力へ書く。`);
-    return;
-  }
-  const { input, output, singleMax, splitHeight } = parseArgs(args);
-  if (!/\.html?$/i.test(input)) throw new Error('入力は .html にする');
-  if (!/\.png$/i.test(output)) throw new Error('出力は .png にする');
+async function exportPng({ input, output, singleMax, splitHeight }) {
   if (!(await stat(input)).isFile()) throw new Error('入力HTMLがファイルではない');
   await access(dirname(output));
 
-  const chromium = await loadChromium();
-  const browser = await chromium.launch();
+  const browser = await loadChromium().launch();
   try {
     const page = await browser.newPage({ viewport: { width: WIDTH, height: 900 }, deviceScaleFactor: SCALE });
     page.setDefaultTimeout(TIMEOUT_MS);
     await page.goto(pathToFileURL(input).href, { waitUntil: 'load' });
     await page.evaluate(() => document.fonts.ready);
+    const { total, rows } = await measure(page);
     await checkJapaneseFont(page);
 
-    const { total, nodes } = await page.evaluate((STUB_MAX) => {
-      const top = (element) => Math.round(element.getBoundingClientRect().top + window.scrollY);
-      const bottom = (element) => Math.round(element.getBoundingClientRect().bottom + window.scrollY);
-      const route = document.querySelector('main.route');
-      const rows = Array.from(document.querySelectorAll('.timeline .row.node'));
-      const allRows = Array.from(document.querySelectorAll('.timeline .row'));
-      // 直前の行が区間ならその高さの範囲で、地点の行なら点より下の余白の範囲で、レールを見せる。
-      const stubOf = (row, max) => {
-        const prev = row.previousElementSibling;
-        if (!prev) return 0;
-        const height = prev.getBoundingClientRect().height;
-        const dot = prev.querySelector('.rail-dot');
-        const room = dot ? height - (dot.getBoundingClientRect().bottom - prev.getBoundingClientRect().top) - 3 : height - 4;
-        return Math.max(0, Math.min(max, Math.floor(room)));
-      };
-      // 次の行が区間ならその高さの範囲で、駅なら点より上の余白の範囲で、レールを見せる。
-      const stubAfterOf = (row, max) => {
-        const next = row.nextElementSibling;
-        if (!next) return 0;
-        const box = next.getBoundingClientRect();
-        const dot = next.querySelector('.rail-dot');
-        const room = dot ? dot.getBoundingClientRect().top - box.top - 3 : box.height - 4;
-        return Math.max(0, Math.min(max, Math.floor(room)));
-      };
-      return {
-        total: Math.ceil(route.getBoundingClientRect().height),
-        // 最初と最後の地点では切らない。
-        nodes: rows.map((row, index) => ({
-          index, top: top(row), bottom: bottom(row), stub: stubOf(row, STUB_MAX), stubAfter: stubAfterOf(row, STUB_MAX),
-          prevRow: allRows.indexOf(row) - 1, nextRow: allRows.indexOf(row) + 1,
-        })).slice(1, -1),
-      };
-    }, STUB_MAX);
-    const pieces = planPieces(total, nodes, singleMax, splitHeight);
-
-    // 画像の端に見せる隣の行は、文字を隠してレールだけを残す。
-    // 地点の行の頭にある区切り線は、広げた範囲に入るため、次の画像では消す。
-    const hideDivider = (index, hidden) =>
-      page.evaluate(([i, h]) => {
-        document.querySelectorAll('.timeline .row.node')[i].querySelector('.body').style.borderTopColor = h ? 'transparent' : '';
-      }, [index, hidden]);
-    const hideRowText = (rowIndex, hidden) =>
-      page.evaluate(([i, h]) => {
-        const row = document.querySelectorAll('.timeline .row')[i];
-        row.querySelectorAll('.side, .body').forEach((el) => { el.style.visibility = h ? 'hidden' : ''; });
-      }, [rowIndex, hidden]);
-    const written = [];
+    const pieces = planPieces(total, cutsOf(rows), singleMax, splitHeight);
     const stem = join(dirname(output), basename(output, extname(output)));
-    for (let i = 0; i < pieces.length; i++) {
-      const piece = pieces[i];
-      if (piece.prevRow !== undefined) await hideRowText(piece.prevRow, true);
-      if (piece.startNode !== undefined) await hideDivider(piece.startNode, true);
-      if (piece.nextRow !== undefined) await hideRowText(piece.nextRow, true);
-      const file = pieces.length === 1 ? output : `${stem}-${i + 1}.png`;
+    const written = [];
+    for (const [i, piece] of pieces.entries()) {
+      await setMarks(page, piece.marks, true);
       const image = await page.screenshot({
         fullPage: true,
         clip: { x: 0, y: piece.start, width: WIDTH, height: piece.end - piece.start },
       });
+      await setMarks(page, piece.marks, false);
+      const file = pieces.length === 1 ? output : `${stem}-${i + 1}.png`;
       await writeFile(file, image);
       written.push(file);
-      if (piece.prevRow !== undefined) await hideRowText(piece.prevRow, false);
-      if (piece.startNode !== undefined) await hideDivider(piece.startNode, false);
-      if (piece.nextRow !== undefined) await hideRowText(piece.nextRow, false);
     }
     console.error(`高さ ${total}px を ${written.length} 枚に書き出した（1枚で出す上限 ${singleMax}px、分ける目安 ${splitHeight}px）`);
-    written.forEach((file) => console.log(file));
+    for (const file of written) console.log(file);
   } finally {
     await browser.close();
   }
 }
 
 try {
-  await exportPng();
+  const args = process.argv.slice(2);
+  if (args.includes('--help') || args.includes('-h')) console.log(HELP);
+  else await exportPng(parseArgs(args));
 } catch (error) {
   console.error(`PNGの書き出しに失敗: ${error.message}`);
   process.exitCode = 1;
