@@ -15,7 +15,7 @@
 
   .route-head {
     margin: 0;
-    padding: 21px 16px 15px;
+    padding: 20px 16px 16px;
     font-size: 14px;
     line-height: 1.7;
     border-bottom: 1px solid;
@@ -26,8 +26,47 @@
   }
 
   .summary {
-    padding: 11px 16px 15px;
+    padding: 13px 16px 13px;
     border-bottom: 1px solid;
+  }
+
+  .summary[data-dated] {
+    padding-block: 14px 12px;
+  }
+
+  .summary-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0 12px;
+    margin-bottom: 11px;
+  }
+
+  .summary-head .summary-time {
+    margin: 0;
+  }
+
+  .summary-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 2px;
+  }
+
+  .summary-date {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .summary-fare {
+    margin: 0 0 0 auto;
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 500;
+    white-space: nowrap;
   }
 
   .summary-time {
@@ -72,8 +111,8 @@
   }
 
   .summary-legs svg {
-    width: 1.33em;
-    height: 1.33em;
+    width: 16px;
+    height: 16px;
   }
 
   .summary-meta {
@@ -83,11 +122,11 @@
   }
 
   .summary-meta svg {
-    width: 1.15em;
-    height: 1.15em;
+    width: 16px;
+    height: 16px;
   }
 
-  .summary-meta .fare-line {
+  .summary-totals {
     display: flex;
     align-items: center;
     gap: 24px;
@@ -101,7 +140,7 @@
     display: grid;
     grid-template-columns: minmax(40px, max-content) 24px minmax(0, 1fr);
     margin: 0;
-    padding: 13px 40px 8px 16px;
+    padding: 6px 40px 8px 16px;
     list-style: none;
   }
 
@@ -132,7 +171,7 @@
     min-width: 0;
   }
 
-  .row + .row .body {
+  .row .body {
     border-top: 1px solid;
   }
 
@@ -142,11 +181,16 @@
 
   .node .rail {
     align-self: stretch;
-    --dot-y: calc(13px + 0.5lh);
+    --dot-y: calc(19px + 0.5lh);
+    --dot-r: 7px;
+  }
+
+  .node-end .rail {
+    --dot-r: 9px;
   }
 
   .node .body {
-    padding-block: 12px 20px;
+    padding-block: 18px 14px;
   }
 
   .node .place {
@@ -162,12 +206,16 @@
     line-height: 1.55;
   }
 
-  .leg[data-kind="ride"] .body {
-    padding-block: 20px 21px;
+  .node .sub + .sub {
+    margin-top: 0;
   }
 
-  .leg[data-kind="walk"] .body {
-    padding-block: 18px 30px;
+  .leg[data-kind="ride"] .body {
+    padding-block: 21px 20px;
+  }
+
+  .leg[data-kind="move"] .body {
+    padding-block: 24px;
   }
 
   .leg .side {
@@ -178,17 +226,17 @@
 
   .leg[data-kind="ride"] .side {
     line-height: 1.2;
-    padding-top: calc(21px + 0.5lh - 0.5em);
+    padding-top: calc(22px + 0.5lh - 8px);
   }
 
-  .leg[data-kind="walk"] .side {
+  .leg[data-kind="move"] .side {
     line-height: 1.4;
-    padding-top: calc(19px + 0.5lh - 0.5em);
+    padding-top: calc(25px + 0.5lh - 8px);
   }
 
   .leg .side svg {
-    width: 1em;
-    height: 1em;
+    width: 16px;
+    height: 16px;
   }
 
   .leg .head {
@@ -201,7 +249,7 @@
     line-height: 1.2;
   }
 
-  .leg[data-kind="walk"] .head {
+  .leg[data-kind="move"] .head {
     line-height: 1.4;
   }
 
@@ -239,6 +287,15 @@
     content: "";
     top: var(--dot-y);
     bottom: 0;
+  }
+
+  /* 点線は丸の外縁で止め、実線は丸の中心まで通して丸の裏に隠す。 */
+  .node[data-above="move"] .rail::before {
+    height: calc(var(--dot-y) - var(--dot-r));
+  }
+
+  .node[data-below="move"] .rail::after {
+    top: calc(var(--dot-y) + var(--dot-r));
   }
 
   .node[data-above="none"] .rail::before,
@@ -283,19 +340,16 @@
     flex: none;
     align-items: center;
     justify-content: center;
-    min-width: 2em;
-    height: 2em;
-    padding-inline: 0.25em;
-    border: 1.5px solid;
-    font-size: 8px;
+    min-width: 16px;
+    height: 16px;
+    font-size: 16px;
     line-height: 1;
     font-weight: 700;
     white-space: nowrap;
   }
 
-  .symbol svg {
-    width: 1.4em;
-    height: 1.4em;
+  .symbol-text {
+    font-size: 12px;
   }
 }
 
@@ -310,6 +364,7 @@
   }
 
   .route-head span,
+  .summary-date,
   .summary-meta,
   .node .sub,
   .leg .detail,
@@ -325,8 +380,12 @@
     color: var(--color-text-sub);
   }
 
-  .row + .row .body {
+  .row .body {
     border-top-color: var(--color-divider);
+  }
+
+  .row:first-child .body {
+    border-top-color: transparent;
   }
 
   .ontime {
@@ -347,12 +406,7 @@
     color: var(--color-on-line-dark);
   }
 
-  .symbol {
-    color: var(--line-color, var(--color-line-default));
-    border-color: var(--line-color, var(--color-line-default));
-    border-radius: 3px;
-  }
-
+  .symbol,
   .leg .side svg,
   .summary svg {
     color: var(--color-text);
@@ -380,9 +434,9 @@
     background: var(--below-color, var(--color-line-default));
   }
 
-  .leg[data-kind="walk"] .rail::before,
-  .node[data-above="walk"] .rail::before,
-  .node[data-below="walk"] .rail::after {
-    background: radial-gradient(circle at 50% 50%, var(--color-walk) 3px, transparent 3.5px) center top / 6px 12px repeat-y;
+  .leg[data-kind="move"] .rail::before,
+  .node[data-above="move"] .rail::before,
+  .node[data-below="move"] .rail::after {
+    background: radial-gradient(circle at 50% 50%, var(--color-walk) 3px, transparent 3.5px) center / 6px 12px no-repeat space;
   }
 }
