@@ -29,7 +29,7 @@ function loadIcons() {
 
 type Clock = { path: string; text: string; hour: number; minute: number; epochDay?: number; abs: number }
 type Place = { 名称: string; 住所?: string }
-type Stop = { 駅: string; 時刻: Clock }
+type Stop = { 地点: string; 時刻: Clock }
 type Move = { 種類: MoveKind; 分: number; メートル?: number }
 type Ride = {
   種類: "乗車"
@@ -41,7 +41,7 @@ type Ride = {
   行先: string
   発: Stop
   着: Stop
-  停車駅?: string
+  停車?: string
   定刻?: boolean
   ホーム?: string
   乗換地点ID?: string
@@ -132,8 +132,8 @@ function place(value: unknown, path: string): Place {
 }
 
 function stop(value: unknown, path: string): Stop {
-  const o = asObject(value, path, ["駅", "時刻"])
-  return { 駅: text(o, "駅", path), 時刻: clock(o, "時刻", path) }
+  const o = asObject(value, path, ["地点", "時刻"])
+  return { 地点: text(o, "地点", path), 時刻: clock(o, "時刻", path) }
 }
 
 const isMove = (kind: unknown): kind is MoveKind => (MOVES as readonly unknown[]).includes(kind)
@@ -146,7 +146,7 @@ function step(value: unknown, path: string): Step {
   }
   if (kind === "乗車") {
     const o = asObject(value, path, [
-      "種類", "乗り物", "路線", "色", "記号", "種別", "行先", "発", "着", "停車駅", "定刻", "ホーム", "乗換地点ID",
+      "種類", "乗り物", "路線", "色", "記号", "種別", "行先", "発", "着", "停車", "定刻", "ホーム", "乗換地点ID",
     ])
     if (o.定刻 !== undefined && typeof o.定刻 !== "boolean") fail(`${path}.定刻`, "true か false で指定する")
     const vehicle = o.乗り物 ?? "電車"
@@ -163,7 +163,7 @@ function step(value: unknown, path: string): Step {
       行先: text(o, "行先", path),
       発: stop(o.発, `${path}.発`),
       着: stop(o.着, `${path}.着`),
-      停車駅: optText(o, "停車駅", path),
+      停車: optText(o, "停車", path),
       定刻: o.定刻 as boolean | undefined,
       ホーム: optText(o, "ホーム", path),
       乗換地点ID: optText(o, "乗換地点ID", path),
@@ -268,7 +268,7 @@ type Row =
   | { kind: "node"; clock: Clock; name: string; sub?: string; end?: boolean; dateLabel?: string }
   | { kind: "leg"; step: Step }
 
-// 乗車の前後に駅の節点を置き、同じ駅・同じ時刻で続く節点は1つにまとめる。
+// 乗車の前後に地点の節点を置き、同じ地点・同じ時刻で続く節点は1つにまとめる。
 // 日付を使うときは、前の節点から日が変わった節点に日付を付ける。
 function buildRows(route: Route): Row[] {
   const rows: Row[] = [
@@ -284,9 +284,9 @@ function buildRows(route: Route): Row[] {
       rows.push({ kind: "leg", step: s })
       continue
     }
-    pushNode(s.発.時刻, s.発.駅)
+    pushNode(s.発.時刻, s.発.地点)
     rows.push({ kind: "leg", step: s })
-    rows.push({ kind: "node", clock: s.着.時刻, name: s.着.駅 })
+    rows.push({ kind: "node", clock: s.着.時刻, name: s.着.地点 })
   }
   rows.push({ kind: "node", clock: route.到着, name: route.目的地.名称, sub: route.目的地.住所, end: true })
   if (route.出発.epochDay !== undefined) {
@@ -304,7 +304,7 @@ function railOf(row: Row | undefined): Step | undefined {
   return row?.kind === "leg" ? row.step : undefined
 }
 
-// 節点どうしが隣り合うとき（乗車の着駅と目的地など）は、徒歩などと同じ点線でつなぐ。
+// 節点どうしが隣り合うとき（乗車の着地点と目的地など）は、徒歩などと同じ点線でつなぐ。
 const railKind = (s: Step | undefined) => (s?.種類 === "乗車" ? "ride" : "move")
 
 function renderRow(row: Row, prev: Row | undefined, next: Row | undefined): string {
@@ -315,7 +315,7 @@ function renderRow(row: Row, prev: Row | undefined, next: Row | undefined): stri
       return `<li class="row leg" data-kind="move"><div class="side">${ICONS[s.種類]}</div><div class="rail"></div><div class="body"><p class="head">${s.種類}</p><p class="detail nowrap">${esc(detail)}</p></div></li>`
     }
     const head = [chip(s), s.種別 ? `<span>${esc(s.種別)}</span>` : "", `<span>${esc(s.行先)}</span>`].join("")
-    const stops = s.停車駅 === undefined ? "" : `<span class="nowrap">（${esc(s.停車駅)}）</span>`
+    const stops = s.停車 === undefined ? "" : `<span class="nowrap">（${esc(s.停車)}）</span>`
     const extras = [
       s.定刻 ? `<span class="ontime">定刻</span>` : "",
       s.ホーム === undefined ? "" : esc(s.ホーム),
@@ -379,7 +379,7 @@ function renderSummary(route: Route): string {
     })
     .join("")
   const from =
-    rides.length === 0 ? "" : `<p class="summary-meta">${esc(rides[0].発.駅)}から ${esc(rides[0].発.時刻.text)}</p>`
+    rides.length === 0 ? "" : `<p class="summary-meta">${esc(rides[0].発.地点)}から ${esc(rides[0].発.時刻.text)}</p>`
   const totals = MOVES.map((kind) => {
     const minutes = route.経路.reduce((sum, s) => sum + (s.種類 === kind ? s.分 : 0), 0)
     return minutes === 0 ? "" : `<span class="nowrap" aria-label="${kind}">${ICONS[kind]} ${duration(minutes)}</span>`

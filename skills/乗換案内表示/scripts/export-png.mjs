@@ -67,15 +67,15 @@ function parseArgs(args) {
   return { input: resolve(positional[0]), output: resolve(positional[1]), ...options };
 }
 
-// 高さが上限以内なら1枚。超えるときは、駅の行で分ける。
-// 切れ目の駅は、前の画像の最後と次の画像の最初の両方に出し、次の画像をその駅から再開する。
-// 枚数は、1枚が上限を超えない最小にし、その枚数で、いちばん高い画像が最も低くなる駅を選ぶ。
+// 高さが上限以内なら1枚。超えるときは、地点の行で分ける。
+// 切れ目の地点は、前の画像の最後と次の画像の最初の両方に出し、次の画像をその地点から再開する。
+// 枚数は、1枚が上限を超えない最小にし、その枚数で、いちばん高い画像が最も低くなる地点を選ぶ。
 function planPieces(total, nodes, singleMax, splitHeight) {
   if (total <= singleMax) return [{ start: 0, end: total }];
-  // 駅の行の頭にある区切り線は前の画像に残す。次の画像は、その1px下から、直前の区間のレールの分だけ上へ広げる。
+  // 地点の行の頭にある区切り線は前の画像に残す。次の画像は、その1px下から、直前の区間のレールの分だけ上へ広げる。
   const startOf = (node) => node.top + 1 - node.stub;
   for (let n = Math.ceil(total / splitHeight); n <= nodes.length + 1; n++) {
-    // best[j][i]: j+1枚目の終わりを駅 i にしたときの、ここまでの最大の高さと、1つ前の駅
+    // best[j][i]: j+1枚目の終わりを地点 i にしたときの、ここまでの最大の高さと、1つ前の地点
     const best = [nodes.map((node, i) => ({ max: node.bottom, prev: -1, i }))];
     for (let j = 1; j < n - 1; j++) {
       best.push(nodes.map((node, i) => {
@@ -101,7 +101,7 @@ function planPieces(total, nodes, singleMax, splitHeight) {
       return { start: from ? startOf(from) : 0, end: to ? to.bottom : total, prevRow: from && from.stub > 0 ? from.prevRow : undefined, startNode: from?.index, endNode: to?.index };
     });
   }
-  throw new Error('高さが大きすぎて、駅の行では分けられない');
+  throw new Error('高さが大きすぎて、地点の行では分けられない');
 }
 
 async function checkJapaneseFont(page) {
@@ -142,7 +142,7 @@ async function checkJapaneseFont(page) {
 async function exportPng() {
   const args = process.argv.slice(2);
   if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
-    console.log(`${usage}\n幅${WIDTH}pxを${SCALE}倍の解像度で書き出す。高さが ${DEFAULT_SINGLE_MAX}px を超えるときは、${DEFAULT_SPLIT_HEIGHT}px 前後ずつ駅の行で複数枚に分け、出力名の末尾に -1、-2 を付ける。切れ目の駅は、前の画像の最後と次の画像の最初の両方に出す。\n書き出したファイルのパスを1行ずつ標準出力へ書く。`);
+    console.log(`${usage}\n幅${WIDTH}pxを${SCALE}倍の解像度で書き出す。高さが ${DEFAULT_SINGLE_MAX}px を超えるときは、${DEFAULT_SPLIT_HEIGHT}px 前後ずつ地点の行で複数枚に分け、出力名の末尾に -1、-2 を付ける。切れ目の地点は、前の画像の最後と次の画像の最初の両方に出す。\n書き出したファイルのパスを1行ずつ標準出力へ書く。`);
     return;
   }
   const { input, output, singleMax, splitHeight } = parseArgs(args);
@@ -166,7 +166,7 @@ async function exportPng() {
       const route = document.querySelector('main.route');
       const rows = Array.from(document.querySelectorAll('.timeline .row.node'));
       const allRows = Array.from(document.querySelectorAll('.timeline .row'));
-      // 直前の行が区間ならその高さの範囲で、駅なら点より下の余白の範囲で、レールを見せる。
+      // 直前の行が区間ならその高さの範囲で、地点の行なら点より下の余白の範囲で、レールを見せる。
       const stubOf = (row, max) => {
         const prev = row.previousElementSibling;
         if (!prev) return 0;
@@ -177,7 +177,7 @@ async function exportPng() {
       };
       return {
         total: Math.ceil(route.getBoundingClientRect().height),
-        // 最初と最後の駅では切らない。
+        // 最初と最後の地点では切らない。
         nodes: rows.map((row, index) => ({
           index, top: top(row), bottom: bottom(row), stub: stubOf(row, STUB_MAX),
           prevRow: allRows.indexOf(row) - 1,
@@ -187,10 +187,10 @@ async function exportPng() {
     }, STUB_MAX);
     const pieces = planPieces(total, nodes, singleMax, splitHeight);
 
-    // 画像の端になる駅は、切れた側のレールを消し、前の画像は駅で終わり、次の画像は駅から始まる形にする。
+    // 画像の端になる地点は、切れた側のレールを消し、前の画像は地点で終わり、次の画像は地点から始まる形にする。
     const setRail = (index, side, value) =>
       page.evaluate(([i, key, v]) => { document.querySelectorAll('.timeline .row.node')[i].dataset[key] = v; }, [index, side, value]);
-    // 駅の行の頭にある区切り線は、広げた範囲に入るため、次の画像では消す。
+    // 地点の行の頭にある区切り線は、広げた範囲に入るため、次の画像では消す。
     const hideDivider = (index, hidden) =>
       page.evaluate(([i, h]) => {
         document.querySelectorAll('.timeline .row.node')[i].querySelector('.body').style.borderTopColor = h ? 'transparent' : '';
