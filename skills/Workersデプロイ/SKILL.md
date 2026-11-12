@@ -25,7 +25,7 @@ Cloudflareの書き込み権限を持つ環境をWorkers Buildsに限定し、�
 | 開発端末 | 認証不要のdry run |
 | GitHub Actions | 認証不要のlint・test・build |
 | Workers Builds | Versionの作成・アップロード、Preview aliasの更新 |
-| ユーザー（Dashboard） | 本番反映（Promote）、ロールバック、初回作成などの管理操作 |
+| ユーザー（Dashboard） | 本番反映（Promote）・ロールバック・初回作成などの管理操作 |
 
 ### 2. 本番反映の制限（エージェントへの制約）
 
@@ -37,7 +37,7 @@ Cloudflareの書き込み権限を持つ環境をWorkers Buildsに限定し、�
 
 ### 3. バージョン管理の対象外
 
-以下のリソース変更やデータ移行はVersion管理に含まれず、ロールバックも効かない。コードの変更とは切り離し、個別に作業する。
+以下のリソース変更やデータ移行はVersion管理に含まれず、ロールバックも効かない。コードの変更とは切り離し個別に作業する。
 
 - ストレージ（KV, D1, R2）
 - シークレット（環境変数）

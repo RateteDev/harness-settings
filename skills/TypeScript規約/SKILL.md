@@ -19,8 +19,8 @@ metadata:
 
 | 用途 | 採用ツール | 備考 |
 |---|---|---|
-| ランタイム / パッケージ管理 / バンドル | **Bun** | - |
-| Lint / Format | **Biome** | 設定ファイルは `biome.json` のみ。依存は `@biomejs/biome` のみ追加する。 |
+| ランタイム・パッケージ管理・バンドル | **Bun** | - |
+| Lint・Format | **Biome** | 設定ファイルは `biome.json` のみ。依存は `@biomejs/biome` のみ追加する。 |
 | テスト | **`bun:test`** | Bun組み込み機能を使用する。 |
 | ロガー | **Pino** | 開発環境のログ整形用として `pino-pretty` を devDependencies に追加する。 |
 
