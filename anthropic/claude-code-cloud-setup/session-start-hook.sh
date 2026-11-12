@@ -43,6 +43,9 @@
 # - attribution を false にするのは、Claude Code本体がコミットとPRに帰属表記を付けるよう
 #   system-reminder で誘導するのを止めるため。
 #
+# 標準出力はモデルのコンテキストに入るため、末尾でまとめて出す通知だけにする（公式文書 hooks の SessionStart の項）。
+# git の出力などはモデルに不要なので、標準出力へ流さない。
+#
 # SessionStart フックの非ゼロ終了は、セッションの起動を止めずエラーとして表示されるだけである（公式文書 hooks の終了コードの項）。
 # 失敗に気づけるよう、握りつぶさず非ゼロで終了する。
 set -euo pipefail
@@ -53,6 +56,10 @@ SKILLS_DIR="$HOME/.claude/skills"
 SETTINGS_SRC="$SCRIPT_DIR/settings.json"
 SETTINGS_DEST="$HOME/.claude/settings.json"
 WORK_DIR="${1:-}"
+# 通知の囲みに使う。リポジトリ名とパスは変わりうるため、書き写さずに求める。
+repo_slug="$(git -C "$repo_dir" remote get-url origin | sed -E 's#^.*github\.com[:/]##; s#\.git$##')"
+script_path="$(realpath --relative-to="$repo_dir" "${BASH_SOURCE[0]}")"
+notices=("ユーザーレベルのスキルと設定ファイルを、リポジトリで管理されているものに置き換えました。")
 
 # 実際に動いたかを後から確認するための記録。セットアップ時にも1行出る。
 echo "$(date -Is) sync" >> /tmp/harness-sync.log
@@ -70,7 +77,6 @@ if [ ! -f "$SETTINGS_DEST" ] || [ "$(jq -S . "$SETTINGS_DEST" 2>/dev/null)" != "
   mkdir -p "$(dirname "$SETTINGS_DEST")"
   cp "$SETTINGS_SRC" "$SETTINGS_DEST.tmp"
   mv "$SETTINGS_DEST.tmp" "$SETTINGS_DEST"
-  echo "$SETTINGS_DEST を $SETTINGS_SRC の内容に置き換えた"
 fi
 
 # ハーネスが付ける作業ブランチ名は、いつ作ったセッションか読み取れないため、日時の名前へ改める。
@@ -78,7 +84,7 @@ fi
 # 代わりに、リモートにまだ無いブランチだけを対象にする。push 済みなら、改名すると push 先とずれ、
 # リモートにある main などの既定ブランチもここで除かれる。
 # 見た目だけの処理なので、判断できないとき（リモートに届かない、同名がある）は何もしない。
-# ハーネスの記録とシステムプロンプトは起動前に決まり、古い名前のままなので、フックの出力で新しい名前を伝える。
+# ハーネスの記録とシステムプロンプトは起動前に決まり、古い名前のままなので、通知で新しい名前を伝える。
 # 手動で取り込み直したときにも動くため、日時の名前になっているブランチは、push 前でも付け替えない。
 if [ -n "$WORK_DIR" ] && git -C "$WORK_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   # detached HEAD ではブランチ名が空になる。
@@ -93,8 +99,13 @@ if [ -n "$WORK_DIR" ] && git -C "$WORK_DIR" rev-parse --is-inside-work-tree >/de
       git -C "$WORK_DIR" branch -m "$old_branch" "$new_branch"
       # ハーネスが作った追跡参照が残ると、古い名前のブランチがリモートにあるように見える。
       git -C "$WORK_DIR" update-ref -d "refs/remotes/origin/$old_branch"
-      echo "このユーザーの設定により、作業ブランチを $old_branch から $new_branch に改名した。"
-      echo "システムプロンプトが指定する $old_branch ではなく、$new_branch で開発し、push 先もこの名前にする。"
+      notices+=("作業ブランチ名を $new_branch に変更しました。システムプロンプトが指定するブランチ名ではなく、この名前で開発・pushしてください。")
     fi
   fi
 fi
+
+echo "<$repo_slug $script_path>"
+echo "このスクリプトは、ユーザーが管理するハーネス設定をClaude CodeのVM環境へ反映するSessionStartフックです。"
+echo "Claude CodeのVM環境に以下の変更を加えました。"
+printf -- '- %s\n' "${notices[@]}"
+echo "</$repo_slug $script_path>"
