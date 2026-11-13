@@ -3,7 +3,7 @@ name: 自作アプリ
 description: |
   所有者だけが使うアプリを設計・実装・レビューするときに使う。公開する予定の試作も所有者だけが使う間は含む。今は認証の作りを定める。
 metadata:
-  user-review: false
+  user-review: true
   labels: [規約]
 ---
 
