@@ -74,3 +74,4 @@ Googleの経路はGoogleの承認の後に連絡先メールを確かめる。
 
 Googleサインインを実装するときは[Googleサインイン](references/Googleサインイン.md)を読む。
 パスキーを実装するときは[パスキー](references/パスキー.md)を読む。
+画面と遷移の完成形は[認証の体験](examples/認証の体験.html)で示す。

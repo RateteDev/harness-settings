@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Example App アカウント</title>
+<style>
+  /* Layout: 端末幅の画面を1枚だけ中央に置き、Googleとパスキーの確認画面は画面の下から重ねる */
+  :root {
+    --bg: #eef0f2;
+    --surface: #ffffff;
+    --sheet: #f6f7f8;
+    --fg: #16191d;
+    --muted: #5d6670;
+    --line: #d5dade;
+    --primary: #16191d;
+    --on-primary: #ffffff;
+    --os-accent: #0a66d8;
+    --shade: rgba(10, 12, 14, .45);
+    --font: "Noto Sans JP", system-ui, sans-serif;
+    --mono: ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1113; --surface: #1a1d20; --sheet: #23272b; --fg: #eef0f2; --muted: #9aa3ad; --line: #30353a;
+      --primary: #eef0f2; --on-primary: #16191d; --os-accent: #4c9bff; --shade: rgba(0, 0, 0, .6); color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1113; --surface: #1a1d20; --sheet: #23272b; --fg: #eef0f2; --muted: #9aa3ad; --line: #30353a;
+    --primary: #eef0f2; --on-primary: #16191d; --os-accent: #4c9bff; --shade: rgba(0, 0, 0, .6); color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 24px; word-break: auto-phrase;
+  }
+  .device {
+    width: 380px; max-width: 100%; margin: 0 auto; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 28px; position: relative; overflow: hidden;
+  }
+  .bar { height: 44px; display: flex; align-items: center; padding: 0 20px; font-weight: 700; font-size: 13px; }
+  .screen { padding: 20px 24px 28px; display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-size: 24px; line-height: 1.35; margin: 0; text-wrap: balance; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+
+  button {
+    font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
+    color: var(--fg); padding: 0 16px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+  button.primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); font-weight: 600; }
+  button.text { border: 0; min-height: 40px; background: transparent; text-decoration: underline; text-underline-offset: 3px; padding: 0 4px; }
+  .fine { color: var(--muted); font-size: 12px; text-align: center; margin: 0; }
+  .fine a { color: inherit; }
+  .lead { color: var(--muted); margin: 0; }
+  .icon { width: 20px; height: 20px; flex: none; }
+  .label { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .sep { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 0; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label, .field .label { font-size: 13px; font-weight: 600; }
+  .field-row { display: flex; align-items: center; justify-content: space-between; }
+  .mail { min-height: 48px; display: flex; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; }
+  .mail span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  input[type="email"], input.code {
+    font: inherit; min-height: 48px; border: 1px solid var(--line); border-radius: 12px; padding: 0 14px;
+    background: var(--surface); color: var(--fg); width: 100%;
+  }
+  input.code { font-family: var(--mono); letter-spacing: .4em; font-size: 20px; text-align: center; }
+  .row-links { display: flex; justify-content: center; gap: 16px; }
+
+  .shade { position: fixed; inset: 0; z-index: 20; background: var(--shade); display: flex; align-items: flex-end; justify-content: center; }
+  .sheet {
+    width: 100%; max-width: 380px; max-height: 100%; overflow-y: auto; background: var(--surface); border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(28px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 14px;
+  }
+  .sheet h3 { margin: 0; font-size: 17px; }
+  .g-head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .account { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; justify-content: flex-start; text-align: left; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--line); display: grid; place-items: center; font-weight: 700; flex: none; }
+  .account .meta { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+  .account small { color: var(--muted); }
+  .share-label { margin: 0; font-size: 13px; font-weight: 600; }
+  .share { margin: -6px 0 0; padding-left: 1.2em; }
+
+  /* パスキーの確認はアプリではなくOSが出すため、アプリの白黒とは別の配色と角丸で描く */
+  .os { background: var(--sheet); border-radius: 24px 24px 0 0; gap: 18px; }
+  .os-top { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 14px; }
+  .os-top .site { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .os-app { width: 32px; height: 32px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; flex: none; }
+  .os-app svg { width: 18px; height: 18px; }
+  .os-close { min-height: 36px; width: 36px; padding: 0; border-radius: 50%; border: 0; background: var(--surface); color: var(--fg); flex: none; }
+  .os-ask { display: flex; flex-direction: column; gap: 18px; }
+  .os h3 { font-size: 20px; font-weight: 400; line-height: 1.45; }
+  .os-account { display: flex; align-items: center; gap: 14px; background: var(--surface); border-radius: 20px; padding: 14px 18px; }
+  .os-account .icon { color: var(--muted); width: 24px; height: 24px; }
+  .os-account .meta { display: flex; flex-direction: column; line-height: 1.4; min-width: 0; }
+  .os-account .meta span { font-size: 17px; }
+  .os-account small { color: var(--muted); overflow-wrap: anywhere; }
+  .os-actions { display: flex; justify-content: flex-end; }
+  .os .os-go { background: var(--os-accent); border-color: var(--os-accent); color: #ffffff; font-weight: 600; border-radius: 999px; padding: 0 24px; }
+  .os-face { padding: 12px 0; color: var(--os-accent); }
+  .os-face svg { width: 64px; height: 64px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sheet { animation: up .18s ease-out; }
+    @keyframes up { from { transform: translateY(16px); } }
+    .os-face svg { animation: pulse .7s ease-in-out infinite alternate; }
+    @keyframes pulse { to { opacity: .35; } }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="g" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></symbol>
+  <symbol id="pk" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7.5" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5 1.3 0 2.5.4 3.5 1"/><circle cx="17.5" cy="13.5" r="2.5"/><path d="M17.5 16v5l1.5-1.2M17.5 18.5l1.5-1"/></g></symbol>
+  <symbol id="face" viewBox="0 0 56 56"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 16V8a4 4 0 0 1 4-4h8M40 4h8a4 4 0 0 1 4 4v8M52 40v8a4 4 0 0 1-4 4h-8M16 52H8a4 4 0 0 1-4-4v-8"/><path d="M20 21v4M36 21v4M28 21v10h-3M21 38c4 3.5 10 3.5 14 0"/></g></symbol>
+</svg>
+
+<main class="device" lang="ja" aria-live="polite">
+  <div class="bar">Example App</div>
+
+  <section class="screen" id="s-start">
+    <h1>アカウントを作成</h1>
+    <div class="stack">
+      <button class="primary" type="button" data-act="google-signup"><svg class="icon"><use href="#g"/></svg>Googleで続ける</button>
+      <button type="button" data-act="passkey-signup"><svg class="icon"><use href="#pk"/></svg>パスキーで作成</button>
+    </div>
+    <p class="fine">続けると<a href="#" data-act="noop">利用規約</a>に同意したことになります</p>
+    <button class="text" type="button" data-act="to-login">ログイン</button>
+  </section>
+
+  <section class="screen" id="s-email" hidden>
+    <h1>連絡先メール</h1>
+    <div class="field" id="email-fixed" hidden>
+      <div class="field-row"><span class="label">メールアドレス</span><button class="text" type="button" data-act="email-change">変更</button></div>
+      <div class="mail"><span id="email-fixed-value"></span></div>
+    </div>
+    <div class="field" id="email-input" hidden>
+      <label for="email">メールアドレス</label>
+      <input type="email" id="email" autocomplete="email" placeholder="you@example.com">
+    </div>
+    <div class="field" id="code-input" hidden>
+      <label for="code">届いたコード</label>
+      <input class="code" id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+    </div>
+    <button class="primary" type="button" id="email-next" data-act="email-next">次へ</button>
+    <div class="row-links" id="code-links" hidden>
+      <button class="text" type="button" data-act="code-resend">コードを再送</button>
+      <button class="text" type="button" data-act="email-change">メールを変更</button>
+    </div>
+  </section>
+
+  <section class="screen" id="s-invite" hidden>
+    <h1 id="invite-title"></h1>
+    <p class="lead">片方を失くしても、もう片方でログインできます</p>
+    <button class="primary" type="button" id="invite-go" data-act="invite-go"></button>
+    <button class="text" type="button" data-act="to-home">あとで</button>
+  </section>
+
+  <section class="screen" id="s-login" hidden>
+    <h1>ログイン</h1>
+    <div class="stack" id="login-last" hidden>
+      <span class="label">前回のログイン方法</span>
+    </div>
+    <hr class="sep" id="login-sep" hidden>
+    <div class="stack" id="login-rest">
+      <button type="button" id="login-google" data-act="google-login"><svg class="icon"><use href="#g"/></svg>Googleで続ける</button>
+      <button type="button" id="login-passkey" data-act="passkey-login"><svg class="icon"><use href="#pk"/></svg>パスキーでログイン</button>
+    </div>
+    <button class="text" type="button" data-act="reset">アカウントを作成</button>
+  </section>
+
+  <section class="screen" id="s-nouser" hidden>
+    <h1>アカウントがありません</h1>
+    <button class="primary" type="button" data-act="reset">アカウントを作成</button>
+  </section>
+
+  <section class="screen" id="s-home" hidden>
+    <h1>ログイン成功</h1>
+    <button type="button" data-act="logout">ログアウト</button>
+  </section>
+</main>
+
+<div class="shade" id="sheet-google" lang="ja" hidden>
+  <div class="sheet" id="g-choose" role="dialog" aria-modal="true" aria-labelledby="sg-title">
+    <span class="g-head"><svg class="icon"><use href="#g"/></svg>Googleでログイン</span>
+    <h3 id="sg-title">アカウントの選択</h3>
+    <button class="account" type="button" data-act="google-pick">
+      <span class="avatar">山</span>
+      <span class="meta">山田 花子<small class="g-mail"></small></span>
+    </button>
+    <button class="text" type="button" data-act="sheet-cancel">キャンセル</button>
+  </div>
+  <div class="sheet" id="g-consent" role="dialog" aria-modal="true" aria-labelledby="sc-title" hidden>
+    <span class="g-head"><svg class="icon"><use href="#g"/></svg>Googleでログイン</span>
+    <h3 id="sc-title">Example App にログイン</h3>
+    <div class="account">
+      <span class="avatar">山</span>
+      <span class="meta">山田 花子<small class="g-mail"></small></span>
+    </div>
+    <p class="share-label">Example App と共有する情報</p>
+    <ul class="share">
+      <li>名前とプロフィール写真</li>
+      <li>メールアドレス</li>
+    </ul>
+    <button class="primary" type="button" data-act="google-consent">続ける</button>
+    <button class="text" type="button" data-act="sheet-cancel">キャンセル</button>
+  </div>
+</div>
+
+<div class="shade" id="sheet-passkey" lang="ja" hidden>
+  <div class="sheet os" role="dialog" aria-modal="true" aria-labelledby="sp-title">
+    <div class="os-top">
+      <span class="os-app"><svg><use href="#pk"/></svg></span>
+      <span class="site">example.app</span>
+      <button class="os-close" type="button" data-act="sheet-cancel" aria-label="閉じる">✕</button>
+    </div>
+    <div class="os-ask" id="os-ask">
+      <h3 id="sp-title"></h3>
+      <div class="os-account">
+        <svg class="icon"><use href="#pk"/></svg>
+        <span class="meta"><span>Example App</span><small id="os-name"></small></span>
+      </div>
+      <div class="os-actions"><button class="os-go" type="button" data-act="passkey-ok">続行</button></div>
+    </div>
+    <div class="os-face" id="os-face" hidden><svg><use href="#face"/></svg></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var GMAIL = "hanako.yamada@gmail.com";
+  var state;
+
+  function fresh() { return { methods: [], mail: "", emailStep: "", route: "", after: null, consent: false }; }
+  function $(id) { return document.getElementById(id); }
+
+  function show(id) {
+    var screens = document.querySelectorAll(".screen");
+    for (var i = 0; i < screens.length; i++) screens[i].hidden = screens[i].id !== id;
+    closeSheets();
+  }
+  function closeSheets() { $("sheet-google").hidden = true; $("sheet-passkey").hidden = true; }
+
+  function openGoogle(next, consent) {
+    state.after = next; state.consent = !!consent;
+    var mails = document.querySelectorAll(".g-mail");
+    for (var i = 0; i < mails.length; i++) mails[i].textContent = GMAIL;
+    $("g-choose").hidden = false; $("g-consent").hidden = true; $("sheet-google").hidden = false;
+  }
+  function passkeyName() { return state.mail; }
+  function openPasskey(title, next) {
+    state.after = next;
+    $("sp-title").textContent = title; $("os-name").textContent = passkeyName() + " • パスキー";
+    $("os-ask").hidden = false; $("os-face").hidden = true; $("sheet-passkey").hidden = false;
+  }
+  // 共用の端末で利用者が分からないよう、記録するのはログイン手段の種類だけにする
+  var LAST_KEY = "example-app.last-method";
+  var ACCOUNT_KEY = "example-app.account";
+  function load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+  function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} }
+  function saveAccount() { save(ACCOUNT_KEY, { methods: state.methods, mail: state.mail }); }
+
+  function renderLogin() {
+    var last = load(LAST_KEY);
+    if (last !== "google" && last !== "passkey") last = "";
+    var order = last === "passkey" ? ["passkey", "google"] : ["google", "passkey"];
+    order.forEach(function (m, i) {
+      var btn = $("login-" + m);
+      btn.classList.toggle("primary", i === 0);
+      (last && i === 0 ? $("login-last") : $("login-rest")).appendChild(btn);
+    });
+    $("login-last").hidden = !last;
+    $("login-sep").hidden = !last;
+    show("s-login");
+  }
+  function loggedIn(m) { save(LAST_KEY, m); show("s-home"); }
+
+  function runAfter() { var fn = state.after; closeSheets(); if (fn) fn(); }
+
+  function renderEmail() {
+    var step = state.emailStep;
+    $("email-fixed").hidden = step !== "fixed";
+    $("email-input").hidden = step !== "input";
+    $("code-input").hidden = step !== "code";
+    $("code-links").hidden = step !== "code";
+    $("email-fixed-value").textContent = state.mail;
+    $("email-next").textContent = step === "input" ? "コードを送る" : step === "code" ? "確認" : "次へ";
+    if (step === "input") $("email").value = state.mail;
+    if (step === "code") $("code").value = "";
+    show("s-email");
+    var focus = step === "input" ? $("email") : step === "code" ? $("code") : null;
+    if (focus) focus.focus();
+  }
+
+  function invite() {
+    var other = state.methods[0] === "google" ? "passkey" : "google";
+    $("invite-title").textContent = other === "passkey" ? "パスキーも作成しますか" : "Googleも連携しますか";
+    $("invite-go").textContent = other === "passkey" ? "パスキーを作成" : "Googleを連携";
+    $("invite-go").dataset.method = other;
+    saveAccount();
+    show("s-invite");
+  }
+
+  var actions = {
+    noop: function () {},
+    reset: function () { state = fresh(); show("s-start"); },
+    "to-login": renderLogin,
+    "to-home": function () { show("s-home"); },
+    logout: renderLogin,
+    "sheet-cancel": closeSheets,
+    "google-signup": function () {
+      openGoogle(function () {
+        state.route = "google"; state.methods = ["google"]; state.mail = GMAIL; state.emailStep = "fixed"; save(LAST_KEY, "google"); renderEmail();
+      }, true);
+    },
+    // パスキーの経路はメールを先に確かめ、パスキーを作った時点で登録を完了させる
+    "passkey-signup": function () {
+      state = fresh(); state.route = "passkey"; state.emailStep = "input"; renderEmail();
+    },
+    "google-pick": function () {
+      if (state.consent) { $("g-choose").hidden = true; $("g-consent").hidden = false; return; }
+      runAfter();
+    },
+    "google-consent": runAfter,
+    "passkey-ok": function () {
+      $("os-ask").hidden = true; $("os-face").hidden = false;
+      setTimeout(runAfter, 900);
+    },
+    "email-change": function () { state.emailStep = "input"; renderEmail(); },
+    "email-next": function () {
+      if (state.emailStep === "fixed") { invite(); return; }
+      if (state.emailStep === "input") {
+        var v = $("email").value.trim();
+        if (!v || !$("email").checkValidity()) { $("email").focus(); return; }
+        state.mail = v; state.emailStep = "code"; renderEmail(); return;
+      }
+      if (!/^\d{6}$/.test($("code").value)) { $("code").focus(); return; }
+      if (state.route === "passkey") {
+        openPasskey("example.app にログインするためにパスキーを作成しますか？", function () {
+          state.methods = ["passkey"]; save(LAST_KEY, "passkey"); invite();
+        });
+        return;
+      }
+      invite();
+    },
+    "code-resend": function () { $("code").value = ""; $("code").focus(); },
+    "invite-go": function () {
+      var m = $("invite-go").dataset.method;
+      var go = function () { state.methods.push(m); saveAccount(); show("s-home"); };
+      if (m === "google") openGoogle(go, true); else openPasskey("example.app にログインするためにパスキーを作成しますか？", go);
+    },
+    "google-login": function () {
+      openGoogle(function () { if (state.methods.indexOf("google") >= 0) loggedIn("google"); else show("s-nouser"); });
+    },
+    "passkey-login": function () {
+      if (state.methods.indexOf("passkey") < 0) { show("s-nouser"); return; }
+      openPasskey("example.app のパスキーでログインしますか？", function () { loggedIn("passkey"); });
+    }
+  };
+
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-act]");
+    if (!el) return;
+    if (el.tagName === "A") e.preventDefault();
+    var fn = actions[el.dataset.act];
+    if (fn) fn(el);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeSheets();
+    if (e.key === "Enter" && (e.target.id === "email" || e.target.id === "code")) { e.preventDefault(); actions["email-next"](); }
+  });
+
+  state = fresh();
+  var saved = load(ACCOUNT_KEY);
+  if (saved && Array.isArray(saved.methods) && saved.methods.length) {
+    state.methods = saved.methods; state.mail = saved.mail || "";
+    renderLogin();
+  } else {
+    show("s-start");
+  }
+})();
+</script>
+</body>
+</html>
