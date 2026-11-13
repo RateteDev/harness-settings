@@ -18,10 +18,9 @@ IDトークンは[公式の手順](https://developers.google.com/identity/gsi/we
 
 設定画面からの連携で別のアカウントに紐付いた`sub`が来たら断る。
 
-## メールを確認済みとする条件
+## メールの確認
 
-`email`が`@gmail.com`で終わるか`email_verified`が真で`hd`があるときは確認コードを送らない。
-それ以外は`email_verified`が真でもコードを送る。
+確認コードを省くのは公式の手順でGoogleがメールの所有を保証するとされる場合だけとする。
 
 ## Cross-Account Protection
 
