@@ -3,14 +3,10 @@
 ## 組み込み
 
 Google Identity Servicesのボタンを`use_fedcm_for_button`でFedCMにして使う。
-スコープは`openid email profile`とし更新トークンは保存しない。
-Cloudflare Workersでは`jose`の`createRemoteJWKSet`と`jwtVerify`でIDトークンを検証する。
-`g_csrf_token`がCookieと本文の両方にあり一致することを確かめる。
-`iss`は`https://accounts.google.com`と`accounts.google.com`の両方を受け入れる。
+IDトークンは[公式の手順](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token)で検証する。
 
 ## アカウントの振り分け
 
-アカウントは`sub`だけで特定し`email`では引かない。
 作成とログインの画面はどちらも同じボタンを使い`sub`の状態で進む先を決める。
 
 | `sub`の状態 | 進む先 |
@@ -29,10 +25,4 @@ Cloudflare Workersでは`jose`の`createRemoteJWKSet`と`jwtVerify`でIDトー�
 
 ## Cross-Account Protection
 
-`sessions-revoked`と`tokens-revoked`と理由が`hijacking`の`account-disabled`を受けたら全セッションを切る。
-理由のない`account-disabled`を受けたらそのアカウントのGoogleサインインを止める。
-Google Workspaceの利用者の通知は届かない。
-
-## 参照
-
-[IDトークンの検証](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token)と[Cross-Account Protection](https://developers.google.com/identity/protocols/risc)の公式文書に従う。
+[Cross-Account Protection](https://developers.google.com/identity/protocols/risc)の通知を受け公式文書のとおりに処理する。
