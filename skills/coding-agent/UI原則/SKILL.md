@@ -3,7 +3,7 @@ name: UI原則
 description: |
   人が見るUIを作成・改修するときにAIが行いがちな悪いUIを避けるための取り決め。Web・ネイティブアプリ・スライド、そこで使用されているスタイルを問わず如何なる場合もUIを扱う場合は必ず読む。
 metadata:
-  user-review: false
+  user-review: true
   labels: [規約]
 ---
 
