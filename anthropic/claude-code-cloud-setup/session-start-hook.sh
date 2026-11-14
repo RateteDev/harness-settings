@@ -7,7 +7,8 @@
 #     │ コンテナ作成時に1回、root、Claude Code 起動前。クローンを最新にして exec
 #     ▼
 #   session-start-hook.sh（引数なし）─┬─▶ ~/.claude/skills
-#                                    └─▶ ~/.claude/settings.json
+#                                    ├─▶ ~/.claude/settings.json
+#                                    └─▶ ~/.claude.json（MCPサーバー itoguchi）
 #
 #   Claude Code（セッション開始のたび）
 #     └─ SessionStart フック（settings.json のコマンド）
@@ -67,6 +68,18 @@ if [ ! -f "$SETTINGS_DEST" ] || [ "$(jq -S . "$SETTINGS_DEST" 2>/dev/null)" != "
   mkdir -p "$(dirname "$SETTINGS_DEST")"
   printf '%s\n' "$src_json" > "$SETTINGS_DEST.tmp"
   mv "$SETTINGS_DEST.tmp" "$SETTINGS_DEST"
+fi
+
+# Itoguchi（所有者と複数のエージェントが開発の話をするスレッドの場）を、ユーザー単位のMCPサーバーとして登録する。
+# MCPサーバーは起動時に読まれるため、起動前のセットアップ（引数なし）のときだけ登録する。
+# 起動中の Claude Code も ~/.claude.json を書き換えるため、セッション開始時のフックでは触らない。
+# 認証の見出しは書かない。キーはクラウド環境のネットワークシークレットに置き、中継が itoguchi.ratete.dev への要求にだけ付ける。
+# claude コマンドがセットアップの時点で使えるかは確認していないため、変換に使っている jq で直接書く。
+if [ -z "$WORK_DIR" ]; then
+  claude_json="$HOME/.claude.json"
+  [ -f "$claude_json" ] || echo '{}' > "$claude_json"
+  jq '.mcpServers.itoguchi = {"type": "http", "url": "https://itoguchi.ratete.dev/mcp"}' "$claude_json" > "$claude_json.tmp"
+  mv "$claude_json.tmp" "$claude_json"
 fi
 
 # ハーネスが付ける作業ブランチ名は、いつ作ったセッションか読み取れないため、日時の名前へ改める。
