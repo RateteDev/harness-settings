@@ -1,0 +1,60 @@
+// Claude Code on the web のクラウド環境で ~/.claude/settings.json の元になる設定。
+// session-start-hook.sh がコメントを除いた JSON に変換して置く。設定の理由はこのファイルにだけ書く。
+{
+  // claude.ai から自動で注入されるコネクタ・スキル・プラグインは取り込まない。
+  // スキルとプラグインは環境変数では切れず、このキーでしか指定できない。
+  "disableClaudeAiConnectors": true,
+  "syncClaudeAiSkills": false,
+  "syncClaudeAiPlugins": false,
+
+  // Claude Code 本体がコミットと PR に帰属表記を付けるよう system-reminder で誘導するのを止める。
+  "attribution": false,
+
+  // 次のプロンプト候補と離席後の要約は、どちらもバックグラウンドで生成してトークンを消費し（公式文書 costs の Background token usage の項）、使わない。
+  // クラウドセッションで効くかは公式文書に明記が無く、確認していない。
+  "promptSuggestionEnabled": false,
+  "awaySummaryEnabled": false,
+
+  // disableClaudeAiConnectors は Claude Code 自身が取得するコネクタにしか効かず、
+  // クラウドホストが --mcp-config で渡すコネクタ（Gmail など）は止められない。そのため使う MCP サーバーを許可リストで列挙する。
+  // 拒否リストにしないのは、claude.ai 側でコネクタを足すたびに見えてしまうため。
+  // 名前はホストが渡す設定上のキー名で、間違えると github が使えなくなる。
+  // claude-code-remote も同時に消えるので、セッション内から環境を直せなくなる。
+  "allowedMcpServers": [
+    { "serverName": "github" },
+    { "serverName": "claude-code-remote" }
+  ],
+
+  "hooks": {
+    "SessionStart": [
+      {
+        // 再開時に動かさないのは、作業中のセッションにスキルや設定の変更を混ぜないため。取り込みたいときは同じコマンドを手動で実行する。
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            // ファイルにせずここへ直接書くのは、セットアップ結果がキャッシュされる場合、キャッシュ済みの設定が指す入口が
+            // 環境を作り直すまで古い版のまま動くため。古いままでも困らないよう入口は git の2行だけにし、変わる処理は更新後に動く
+            // session-start-hook.sh へ置く。キャッシュされるかどうかは確認していない。
+            // ディレクトリは setup-script.sh の REPO_DIR と一致させる。cd で移るため、移る前の作業ディレクトリを OLDPWD で渡す。
+            "command": "cd /opt/harness-settings && git fetch -q --depth 1 origin HEAD && git reset -q --hard FETCH_HEAD && ./anthropic/claude-code-cloud-setup/session-start-hook.sh \"$OLDPWD\""
+          }
+        ]
+      }
+    ],
+    "MessageDisplay": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            // Claude の回答を表示する直前に Gemini で書き直す。絶対パスを指すのは、本体を直してもこのファイルを変えずに済ませるため。
+            // このファイル名もキャッシュ済みの設定に書かれうるので、変えると環境を作り直すまでフックが失敗する。
+            "command": "/opt/harness-settings/anthropic/claude-code-cloud-setup/message-display-hook.sh",
+            // 既定の10秒では長い回答の書き直しに足りない恐れがある。スクリプト内の curl の制限（45秒）より長くする。
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SessionStart フックの本体。skills/coding-agent/ と settings.json を ~/.claude へ丸ごと反映し、作業ブランチの名前を整える。
+# SessionStart フックの本体。skills/coding-agent/ と、settings.jsonc から作った settings.json を ~/.claude へ反映し、作業ブランチの名前を整える。
 # settings.json は内容が同じなら置き換えない。引数は、作業リポジトリのディレクトリ（任意）。
 # Claude Code on the web のクラウド環境を組み立てる流れの要でもあるため、全体の図をここに置く。
 #
@@ -16,11 +16,6 @@
 #                ├─▶ ~/.claude/settings.json
 #                └─▶ 作業ブランチの改名
 #
-# フックのコマンドをファイルにせず settings.json へ直接書くのは、セットアップ結果がキャッシュされる場合、
-# キャッシュ済みの設定が指す入口が環境を作り直すまで古い版のまま動くため。
-# 古いままでも困らないよう入口は git の2行だけにし、変わる処理は、クローンを更新した後に動くこのファイルへ置く。
-# キャッシュされるかどうかは確認していない。
-# コマンドは cd でクローンへ移るため、移る前の作業ディレクトリを OLDPWD で引数に渡す。
 # このファイルの名前はキャッシュ済みの設定にも書かれているため、変えると環境を作り直すまでフックが失敗する。
 #
 # 設定はセットアップとフックの両方で置く。MCPサーバーの絞り込みなど起動時に効かせたい設定は
@@ -28,28 +23,7 @@
 # フックが置く設定は、キャッシュされた環境が古いときの補修で、置き換え後も起動中のセッションに
 # 効くかどうかは確認していない。
 #
-# settings.json はコメントを書けないので、各キーの意図はここに残す。
-# - claude.aiから自動で注入されるコネクタ・スキル・プラグインは取り込まない。
-#   スキルとプラグインは環境変数では切れず、settings.jsonのキーでしか指定できない。
-# - disableClaudeAiConnectorsはClaude Code自身が取得するコネクタにしか効かず、
-#   クラウドホストが--mcp-configで渡すコネクタ(Gmailなど)は止められない。
-#   そのため、使うMCPサーバーを allowedMcpServers の許可リストで列挙し、それ以外を弾く。
-#   拒否リストにしないのは、claude.ai側でコネクタを足すたびに見えてしまうため。
-# - 許可リストの名前はホストが渡す設定上のキー名で、間違えるとgithubが使えなくなる。
-#   claude-code-remoteも同時に消えるので、セッション内から環境を直せなくなる。
-# - フックのcommandが指すディレクトリは、setup-script.sh の REPO_DIR と一致させる。
-# - フックを再開時に動かさないのは、作業中のセッションにスキルや設定の変更を混ぜないため。
-#   取り込みたいときは、フックと同じコマンドを手動で実行する。
-# - attribution を false にするのは、Claude Code本体がコミットとPRに帰属表記を付けるよう
-#   system-reminder で誘導するのを止めるため。
-# - promptSuggestionEnabled（次のプロンプト候補）と awaySummaryEnabled（離席後の要約）を false にするのは、
-#   どちらもモデルがバックグラウンドで生成してトークンを消費し（公式文書 costs の Background token usage の項）、使わないため。
-#   クラウドセッションでこの2つの設定が効くかは、公式文書に明記が無く、確認していない。
-# - MessageDisplay フックは、Claude の回答を表示する直前に Gemini で書き直すためのもの。
-#   command がスクリプトの絶対パスを指すのは、本体を直しても settings.json を変えずに済ませるため。
-#   このファイル名もキャッシュ済みの設定に書かれうるので、変えると環境を作り直すまでフックが失敗する。
-#   timeout の既定は10秒で、長い回答の書き直しには足りない恐れがあるため、60秒にしている。
-#   スクリプト内の curl の制限（45秒）より長くしておく。
+# 設定の各キーと、外したツールの理由は settings.jsonc のコメントに書く。
 #
 # 標準出力はモデルのコンテキストに入るため、末尾でまとめて出す通知だけにする（公式文書 hooks の SessionStart の項）。
 # git の出力などはモデルに不要なので、標準出力へ流さない。
@@ -63,7 +37,7 @@ repo_dir="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 # skills/ の直下には、コーディングエージェント向けではないスキルも置く。反映するのは coding-agent/ の下だけにする。
 SKILLS_SRC="$repo_dir/skills/coding-agent"
 SKILLS_DIR="$HOME/.claude/skills"
-SETTINGS_SRC="$SCRIPT_DIR/settings.json"
+SETTINGS_SRC="$SCRIPT_DIR/settings.jsonc"
 SETTINGS_DEST="$HOME/.claude/settings.json"
 WORK_DIR="${1:-}"
 # 通知の囲みに使う。リポジトリ名とパスは変わりうるため、書き写さずに求める。
@@ -81,13 +55,17 @@ rm -rf "$SKILLS_DIR"
 mkdir -p "$SKILLS_DIR"
 cp -r "$SKILLS_SRC/." "$SKILLS_DIR/"
 
+# コメント付きの settings.jsonc を JSON に変換する。jq はコメントを読めないため、JSONC を読める Bun を使う。
+# セットアップスクリプトの時点で Bun に PATH が通っているかは確認していないため、PATH に無ければ既定の導入先を見る。
+bun_bin="$(command -v bun || echo "$HOME/.bun/bin/bun")"
+[ -x "$bun_bin" ] || { echo "session-start-hook: bun が見つからず settings.jsonc を変換できません" >&2; exit 1; }
 # 空白や改行だけの違いを差分とみなして書き換えないよう、キーを整列した JSON で比べる。
 # 壊れた JSON は差分として置き換える。
-src_json="$(jq -S . "$SETTINGS_SRC")"
+src_json="$("$bun_bin" -e 'console.log(JSON.stringify(require(process.argv[1])))' "$SETTINGS_SRC" | jq -S .)"
 if [ ! -f "$SETTINGS_DEST" ] || [ "$(jq -S . "$SETTINGS_DEST" 2>/dev/null)" != "$src_json" ]; then
   # 起動中の Claude Code が設定を監視しているため、書きかけを読まれないよう mv で差し替える。
   mkdir -p "$(dirname "$SETTINGS_DEST")"
-  cp "$SETTINGS_SRC" "$SETTINGS_DEST.tmp"
+  printf '%s\n' "$src_json" > "$SETTINGS_DEST.tmp"
   mv "$SETTINGS_DEST.tmp" "$SETTINGS_DEST"
 fi
 

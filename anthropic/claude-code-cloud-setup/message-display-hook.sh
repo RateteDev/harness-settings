@@ -8,7 +8,7 @@
 #
 # 途中を隠している以上、final が届かなければその回答の本文は画面に出ない。
 # - 生成中に中断した（Esc、通信エラーなど）とき。原文は verbose モードで読める。
-# - このフックが settings.json の timeout で打ち切られたとき。
+# - このフックが settings.jsonc の timeout で打ち切られたとき。
 #   そうならないよう、curl の制限時間を timeout より短くし、時間切れでも溜めた原文を返せるようにしている。
 # 中断したとき、溜めた一時ファイルは残る。環境が使い捨てなので掃除しない。
 #
@@ -41,7 +41,7 @@ MODEL=gemini-3.8-flash
 PRICE_IN_PER_M=0.75
 PRICE_OUT_PER_M=3.75
 ENDPOINT="https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent"
-# settings.json の timeout（60秒）より短くする。
+# settings.jsonc の timeout（60秒）より短くする。
 MAX_TIME=45
 NOTE_LABEL='Geminiによる書き直し'
 # これ未満の文字数の回答は書き直さない。
