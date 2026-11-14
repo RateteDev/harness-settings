@@ -15,15 +15,159 @@
   "promptSuggestionEnabled": false,
   "awaySummaryEnabled": false,
 
+  // システムプロンプトにある commit と PR の手順を外す。コミット規約スキルと重なり、食い違うと規約を優先させたいため。
+  // ホストが足す Git の規則は残る。
+  "includeGitInstructions": false,
+
   // disableClaudeAiConnectors は Claude Code 自身が取得するコネクタにしか効かず、
   // クラウドホストが --mcp-config で渡すコネクタ（Gmail など）は止められない。そのため使う MCP サーバーを許可リストで列挙する。
   // 拒否リストにしないのは、claude.ai 側でコネクタを足すたびに見えてしまうため。
-  // 名前はホストが渡す設定上のキー名で、間違えると github が使えなくなる。
-  // claude-code-remote も同時に消えるので、セッション内から環境を直せなくなる。
+  // 名前はホストが渡す設定上のキー名で、間違えると github や claude-code-remote が使えなくなる。
   "allowedMcpServers": [
     { "serverName": "github" },
+    // リポジトリの追加、プレビューのポート、セッションの情報に使う。使わない機能のツールは permissions.deny で外す。
     { "serverName": "claude-code-remote" }
   ],
+
+  "permissions": {
+    // ツール名だけの deny は、ツールをモデルのコンテキストから外す（公式文書 permissions）。
+    // 次のものは判断のうえ残した。理由は名前の後に書く。
+    // - mcp__claude-code-remote__report_preview_port：クラウドで作った Web の画面をアプリで開いて確かめることがある。
+    // - mcp__claude-code-remote__add_repo、register_repo_root、list_repos：複数のリポジトリにまたがる作業をする。
+    // - mcp__claude-code-remote__get_session：モデルなどセッションの状態を正しく答えさせる。
+    // - Artifact：確認や判断のためのページを作らせる。
+    // - SendUserFile：作ったファイルをアプリで受け取る。
+    // - WebSearch：一次情報を自分で確かめさせる。
+    // - mcp__github__*：クラウドから GitHub を触る唯一の経路。
+    // - ListMcpResourcesTool、ReadMcpResourceTool、ReadMcpResourceDirTool：今はリソースが無いが、MCP サーバーを足したときに使う可能性がある。
+    // - ReportFindings：/code-review の結果表示に使う。あまり使わないが code-review を残すため残す。
+    // - Workflow：使用頻度は少ないが使う可能性がある。/code-review が依存している可能性もある。
+    "deny": [
+      // 予約タスク：定期的な作業はクラウドのセッションに任せない。
+      "mcp__claude-code-remote__create_trigger",
+      "mcp__claude-code-remote__update_trigger",
+      "mcp__claude-code-remote__delete_trigger",
+      "mcp__claude-code-remote__fire_trigger",
+      "mcp__claude-code-remote__get_trigger",
+      "mcp__claude-code-remote__list_triggers",
+      "mcp__claude-code-remote__send_later",
+
+      // 他のセッションの操作：並列の作業は同じセッション内のサブエージェントで足りる。
+      "mcp__claude-code-remote__create_session",
+      "mcp__claude-code-remote__send_message",
+      "mcp__claude-code-remote__interrupt_session",
+      "mcp__claude-code-remote__archive_session",
+      "mcp__claude-code-remote__unarchive_session",
+      "mcp__claude-code-remote__set_session_tags",
+      "mcp__claude-code-remote__set_session_title",
+      "mcp__claude-code-remote__list_sessions",
+      "mcp__claude-code-remote__list_events",
+      "mcp__claude-code-remote__get_event",
+      // エージェント一覧：他のセッションとは連携しない。
+      "ListAgents",
+
+      // PR の見張り：PR を普段の開発で使わない。
+      "mcp__claude-code-remote__subscribe_pr_activity",
+      "mcp__claude-code-remote__unsubscribe_pr_activity",
+      // 通知の受け取り：通知の出どころ（予約タスク、他のセッション、PR の見張り）をすべて外したため出番がない。
+      "ReadNotifications",
+      // Webhook の受け口：外からの通知でセッションを起こす使い方はしない。
+      "mcp__claude-code-remote__watch_url",
+      "mcp__claude-code-remote__unwatch_url",
+
+      // 手元の PC との接続：手元の PC を使う作業は別のセッションで行い、リモートではリモートで完結する作業だけを行う。
+      "mcp__claude-code-remote__list_computer_folders",
+      "mcp__claude-code-remote__request_computer_folder",
+      // リポジトリの信頼確認にも使うが、これまで求められたことがなく、求められれば断られた操作から分かるのでそのとき戻す。
+      "mcp__claude-code-remote__confirm_repository_trust",
+
+      // 環境の設定：クラウド VM の設定（通信先、環境変数、セットアップスクリプト、API キー）はオーナーが自分で触る。
+      "mcp__claude-code-remote__get_environment",
+      "mcp__claude-code-remote__update_environment",
+      "mcp__claude-code-remote__create_environment",
+      "mcp__claude-code-remote__switch_environment",
+      "mcp__claude-code-remote__list_environments",
+      "mcp__claude-code-remote__request_credential",
+      "mcp__claude-code-remote__read_documentation",
+
+      // スマホへの通知：必要ならフックで対応する。
+      "PushNotification",
+
+      // 予約実行と /loop：使い捨てのコンテナでは繰り返し実行を使わない。
+      "CronCreate",
+      "CronDelete",
+      "CronList",
+      "ScheduleWakeup",
+      // 条件待ち：1回だけの完了待ちは Bash のバックグラウンド実行で足り、何度も通知を受ける用途は出番が少ない。
+      "Monitor",
+
+      // 質問ダイアログ：選択肢で答えを絞られるより、文章で背景ごとやり取りしたい。
+      "AskUserQuestion",
+      // 計画モード：権限が制限されて試作ができない。通常のモードでやり取りしながら計画と実行を分けるほうが便利。
+      "EnterPlanMode",
+      "ExitPlanMode",
+      // タスク管理：進み具合はチャットの説明で足り、ツールの呼び出しや注意書きに注意を割かせたくない。
+      "TaskCreate",
+      "TaskGet",
+      "TaskList",
+      "TaskUpdate",
+      "TaskStop",
+      // Git worktree：試作用の作業ツリーは Bash の git worktree で作れる。
+      "EnterWorktree",
+      "ExitWorktree",
+
+      // 職種の選択画面：Cowork の初期設定用で Claude Code では使わない。
+      "ShowOnboardingRolePicker",
+      // スキルのおすすめと検索：スキルはこのリポジトリで管理し、外から足さない。
+      "SuggestSkills",
+      "SearchSkills",
+      "ListSkills",
+      // コネクタとプラグインの検索：コネクタとプラグインは上のキーで止めている。
+      "ListConnectors",
+      "SuggestConnectors",
+      "SearchMcpRegistry",
+      "SearchPlugins",
+      "SuggestPluginInstall",
+      "ListPlugins",
+      // デザインの同期：デザインの決まりは UI 原則などのスキルで持つ。
+      "DesignSync",
+      // Artifact のコメントとデータ：判断の受け渡しはテキストを貼る形で足り、入力つきのページは作らない。
+      "ArtifactComments",
+      "ArtifactData",
+      // Jupyter ノートの編集：ノートブックは使わない。
+      "NotebookEdit"
+    ]
+  },
+
+  // 同梱スキルの扱い。off はモデルにも / メニューにも出さない。
+  // user-invocable-only はモデルに説明を載せず、/名前 と打ったときだけ動かす。
+  // 残したもの：claude-api（Claude API を使う開発もあり、そのときは自動で読ませたい）、update-config（設定の変更を正しく書かせる）、
+  // workflow-authoring（Workflow を残すため）。
+  "skillOverrides": {
+    // 必要なときに自分で /run と打てば足り、モデルが自分から使う必要はない。
+    "run": "user-invocable-only",
+    // レビューは自分で /code-review などと打つ。
+    "code-review": "user-invocable-only",
+    "security-review": "user-invocable-only",
+    "simplify": "user-invocable-only",
+    // /loop は上の予約実行と一緒に止める。
+    "loop": "off",
+    // グラフを作る機会が少ないのに、説明が長く毎ターン載る。
+    "dataviz": "off",
+    // クラウドではキーを割り当てない。
+    "keybindings-help": "off",
+    // クラウドは自動モードで、許可の確認がほぼ出ない。
+    "fewer-permission-prompts": "off",
+    // 拡張の作り方はスキル・プラグイン開発規約で持つ。
+    "plugin-authoring": "off",
+    // 指示書は AGENTS.md 規約に沿って書き、自動では作らない。
+    "init": "off",
+    // Artifact を作るときは quickstart の応答に同じ手引きが含まれるため、スキルとしては載せない。
+    // 保存などの機能を持つページは作らない。
+    "artifact-design": "off",
+    "artifact-diagramming": "off",
+    "artifact-capabilities": "off"
+  },
 
   "hooks": {
     "SessionStart": [
