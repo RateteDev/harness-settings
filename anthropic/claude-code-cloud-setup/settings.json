@@ -3,6 +3,8 @@
   "syncClaudeAiSkills": false,
   "syncClaudeAiPlugins": false,
   "attribution": false,
+  "promptSuggestionEnabled": false,
+  "awaySummaryEnabled": false,
   "allowedMcpServers": [
     { "serverName": "github" },
     { "serverName": "claude-code-remote" }

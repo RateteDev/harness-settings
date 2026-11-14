@@ -42,6 +42,9 @@
 #   取り込みたいときは、フックと同じコマンドを手動で実行する。
 # - attribution を false にするのは、Claude Code本体がコミットとPRに帰属表記を付けるよう
 #   system-reminder で誘導するのを止めるため。
+# - promptSuggestionEnabled（次のプロンプト候補）と awaySummaryEnabled（離席後の要約）を false にするのは、
+#   どちらもモデルがバックグラウンドで生成してトークンを消費し（公式文書 costs の Background token usage の項）、使わないため。
+#   クラウドセッションでこの2つの設定が効くかは、公式文書に明記が無く、確認していない。
 # - MessageDisplay フックは、Claude の回答を表示する直前に Gemini で書き直すためのもの。
 #   command がスクリプトの絶対パスを指すのは、本体を直しても settings.json を変えずに済ませるため。
 #   このファイル名もキャッシュ済みの設定に書かれうるので、変えると環境を作り直すまでフックが失敗する。

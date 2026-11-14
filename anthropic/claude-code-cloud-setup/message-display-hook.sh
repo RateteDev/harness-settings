@@ -14,6 +14,7 @@
 #
 # 書き直しに失敗したときは、溜めた原文の全体を表示する。理由はログにだけ残し、画面には出さない。
 # 書き直しに成功したときだけ、末尾に注記を付ける。注記の有無で、見ているのが書き直しか原文か分かる。
+# 注記には、その書き直し1回分の Gemini の費用も添える。Claude 側の費用は含まない。
 #
 # 短い回答は書き直さず、原文のまま表示する。ツール呼び出しの前の途中発言まで書き直すと、待たされるうえに呼び出しも増えるため。
 # 途中発言と最終回答を区別する項目は、このフックの入力に無い。
@@ -34,10 +35,15 @@ set -u
 STATE_DIR=/tmp/message-display-hook
 LOG=/tmp/message-display-hook.log
 MODEL=gemini-3.8-flash
+# 100万トークンあたりの米ドル。API の応答には料金が含まれないため、モデルとセットで持つ。
+# MODEL を変えるときは、料金表（ai.google.dev/gemini-api/docs/pricing）に合わせて両方を直す。
+# この値は2026年12月31日までの導入価格で、2027年1月1日から入力1.50・出力7.50になる。
+PRICE_IN_PER_M=0.75
+PRICE_OUT_PER_M=3.75
 ENDPOINT="https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent"
 # settings.json の timeout（60秒）より短くする。
 MAX_TIME=45
-NOTE='（Geminiによる書き直し）'
+NOTE_LABEL='Geminiによる書き直し'
 # これ未満の文字数の回答は書き直さない。
 MIN_CHARS=300
 
@@ -46,7 +52,9 @@ SYSTEM_PROMPT='次の文章はAIコーディングエージェントがユーザ
 読みやすくするために順序・構造・用語・表現方法は大きく変えて問題ありません。
 レポジトリでの用語・コマンド例など編集によって意味の取り違えや実行ミスに繋がるものは触れないようにします。
 前置きや説明は付けず直した文章だけを出力。
-ヒント：Markdown記法はプレビューされます。使用できる記法を最大限活用してください。'
+ヒント：GFM（GitHub Flavored Markdown）の仕様にある記法はプレビューされます。表・見出し・太字・コード・引用など、使用できる記法を最大限活用してください。
+GFMの仕様にない記法は描画されないため使わないでください（Mermaid、> [!NOTE] のようなアラート記法など）。
+箇条書きは入れ子にしないでください。階層が必要な内容は、見出しや表で表します。'
 
 SCHEMA='{"type":"object","properties":{"text":{"type":"string","description":"書き直した文章だけ。前置きや説明を含めない。"}},"required":["text"]}'
 
@@ -72,6 +80,8 @@ rm -f "$file"
 
 # 失敗の理由を reason に入れて 1 を返す。理由には、応答の本文や鍵を含めない。
 reason=""
+# 呼び出し1回分の費用（米ドル、小数4桁）。応答から求められないときは空のままにして、金額を出さない。
+cost=""
 rewrite() {
   [ -n "${GEMINI_API_KEY:-}" ] || { reason="GEMINI_API_KEY が未設定"; return 1; }
 
@@ -91,6 +101,12 @@ rewrite() {
   status=${response##*$'\n'}
   json=${response%$'\n'*}
   [ "$status" = 200 ] || { reason="HTTP $status"; return 1; }
+
+  # 課金される出力には思考トークンが含まれ、出力の数倍になることがある（実測で、出力66に対し思考483）。
+  # thoughtsTokenCount を足さず、総数から入力を引くのは、その項目が応答に無い場合も取りこぼさないため。
+  cost=$(jq -er --argjson pin "$PRICE_IN_PER_M" --argjson pout "$PRICE_OUT_PER_M" '.usageMetadata
+    | (.promptTokenCount * $pin + (.totalTokenCount - .promptTokenCount) * $pout) / 1000000' <<<"$json" 2>/dev/null) \
+    && cost=$(LC_ALL=C printf '%.4f' "$cost") || cost=""
 
   # 出力が上限などで途中で切れていると、回答の後半が黙って消えるため、STOP で終わったものだけ使う。
   text=$(jq -er '.candidates[0] | select(.finishReason == "STOP")
@@ -113,9 +129,9 @@ fi
 
 text=""
 if rewrite; then
-  log "ok ${SECONDS}s"
-  emit "$text"$'\n\n'"$NOTE"$'\n'
+  log "ok ${SECONDS}s cost=${cost:-不明}"
+  emit "$text"$'\n\n'"（${NOTE_LABEL}${cost:+ \$${cost}}）"$'\n'
 else
-  log "fallback: $reason ${SECONDS}s"
+  log "fallback: $reason ${SECONDS}s cost=${cost:-不明}"
   emit "$original"$'\n'
 fi
