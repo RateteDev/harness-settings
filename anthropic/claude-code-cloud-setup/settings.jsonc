@@ -26,7 +26,9 @@
   "allowedMcpServers": [
     { "serverName": "github" },
     // リポジトリの追加、プレビューのポート、セッションの情報に使う。使わない機能のツールは permissions.deny で外す。
-    { "serverName": "claude-code-remote" }
+    { "serverName": "claude-code-remote" },
+    // 所有者とエージェントのスレッドの場。session-start-hook.sh がセットアップで登録する。
+    { "serverName": "itoguchi" }
   ],
 
   "permissions": {
