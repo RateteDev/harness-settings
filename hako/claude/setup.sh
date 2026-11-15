@@ -11,7 +11,7 @@ repo_dir="$(git -C "$script_dir" rev-parse --show-toplevel)"
 : "${ITOGUCHI_TOKEN:?ITOGUCHI_TOKEN がありません。ホストで sbx secret set-custom --host itoguchi.ratete.dev --env ITOGUCHI_TOKEN を登録してください}"
 
 mkdir -p ~/.claude
-# 共通の行動規範の後ろに、hako の VM で会話する方法を足す。hako は、この後に VM の事情を伝える指示を足す。
+# 共通の行動規範の後ろに、hako の VM の事情と会話する方法を足す。hako 自身は指示を足さない。
 cat "$repo_dir/AGENTS.md" "$script_dir/instructions.md" > ~/.claude/CLAUDE.md
 
 # skills/ の直下には、コーディングエージェント向けではないスキルも置く。反映するのは coding-agent/ の下だけにする。
