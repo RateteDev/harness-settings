@@ -1,0 +1,14 @@
+// hako の VM で動く Claude Code の ~/.claude/settings.json の元になる設定。
+// setup.sh がコメントを除いた JSON に変換して置く。設定の理由はこのファイルにだけ書く。
+// 権限の確認を省く設定と VM の事情に合わせた指示は、hako が起動のときに渡すため、ここには書かない。
+{
+  // Claude Code 本体がコミットと PR に帰属表記を付けるよう誘導するのを止める。
+  "attribution": false,
+
+  // システムプロンプトにある commit と PR の手順を外す。コミット規約スキルと重なり、食い違うと規約を優先させたいため。
+  "includeGitInstructions": false,
+
+  // claude.ai に置いたスキルとプラグインを取り込まず、スキルはこのリポジトリのものだけにする。
+  "syncClaudeAiSkills": false,
+  "syncClaudeAiPlugins": false
+}
