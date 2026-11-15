@@ -1,6 +1,6 @@
 #!/bin/bash
 # hako（使い捨てのVMでエージェントを動かす仕組み）の VM で動く Claude Code へ、
-# 行動規範・skills/coding-agent/・settings.jsonc・MCPサーバー itoguchi を反映する。
+# 行動規範と instructions.md・skills/coding-agent/・settings.jsonc・MCPサーバー itoguchi を反映する。
 # hako が VM の中にこのリポジトリをクローンし、Claude Code を起動する前に1回呼ぶ。VMは使い捨てのため、元に戻す処理は持たない。
 set -euo pipefail
 
@@ -11,7 +11,8 @@ repo_dir="$(git -C "$script_dir" rev-parse --show-toplevel)"
 : "${ITOGUCHI_TOKEN:?ITOGUCHI_TOKEN がありません。ホストで sbx secret set-custom --host itoguchi.ratete.dev --env ITOGUCHI_TOKEN を登録してください}"
 
 mkdir -p ~/.claude
-cp "$repo_dir/AGENTS.md" ~/.claude/CLAUDE.md
+# 共通の行動規範の後ろに、hako の VM で会話する方法を足す。hako は、この後に VM の事情を伝える指示を足す。
+cat "$repo_dir/AGENTS.md" "$script_dir/instructions.md" > ~/.claude/CLAUDE.md
 
 # skills/ の直下には、コーディングエージェント向けではないスキルも置く。反映するのは coding-agent/ の下だけにする。
 rm -rf ~/.claude/skills
