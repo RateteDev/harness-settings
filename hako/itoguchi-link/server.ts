@@ -73,9 +73,9 @@ async function notice(thread: string, text: string) {
 async function called(event: Extract<Event, { type: "post.created" }>) {
   const { thread, post } = event;
   const prompt = `Itoguchi のスレッド ${thread.url} （id: ${thread.id}）の seq ${post.seq} で、${post.author.name} から呼ばれました。`;
-  // 同じ名前の参加者が複数いると、呼ばれた名前も重なって届く。ハーネスごとに1回だけ頼む。
-  const harnesses = new Set(post.mentions.flatMap((name) => agents.get(name) ?? []));
-  for (const harness of harnesses) {
+  for (const name of post.mentions) {
+    const harness = agents.get(name);
+    if (!harness) continue;
     const state = loadState();
     const key = keyOf(thread.id, harness);
     try {
