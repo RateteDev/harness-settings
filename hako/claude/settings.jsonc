@@ -12,6 +12,18 @@
   "syncClaudeAiSkills": false,
   "syncClaudeAiPlugins": false,
 
+  // hako は入口（turn・worker・interactive・rc）を環境変数 HAKO_MODE で伝えるだけで、指示を足さない。
+  // 入口ごとの事情は modes/ に書き、setup.sh が置いたものをセッションの始めに知らせる。
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "cat \"$HOME/.claude/hako-modes/$HAKO_MODE.md\" 2>/dev/null || true" }
+        ]
+      }
+    ]
+  },
+
   "permissions": {
     // hako の VM では、呼ばれたことをホストの連携サーバーが新しいターンとして届ける。
     // ターンの中で待つと、プロセスが終わらずVMを止められず、同じ呼びかけに2回答えることにもなる。
