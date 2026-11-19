@@ -18,7 +18,6 @@ metadata:
 - **ディレクトリ構成（モノレポ）**
   - アプリケーション: `apps/`
   - 共有ライブラリ・内部パッケージ: `packages/`
-  - 設計判断（ADR）: `docs/adr/`
   - 仕様書: `docs/spec/`
 
 - **開発コマンド**
@@ -26,11 +25,3 @@ metadata:
 
 - **ツールのバージョン管理**
   - 各言語の標準ファイルのみで一元管理し、CIやビルド設定にバージョンを直書きしない。
-  - Bunのバージョンは `package.json` の `packageManager` に記述する（Cloudflare Workers Builds等の制約に対応するため）。
-
-- **Gitフック**
-  - フックの実体は `.githooks/` に配置する。
-  - クローン後に `git config core.hooksPath .githooks` を実行して有効化する（ローカル設定のためリポジトリごとに設定が必要）。
-
-- **AGENTS.md**
-  - リポジトリ固有の実態・前提条件を記述した `AGENTS.md` をルートに配置する。
