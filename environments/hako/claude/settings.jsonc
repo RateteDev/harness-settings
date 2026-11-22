@@ -1,6 +1,6 @@
 // hako の VM で動く Claude Code の ~/.claude/settings.json の元になる設定。
 // setup.sh がコメントを除いた JSON に変換して置く。設定の理由はこのファイルにだけ書く。
-// 権限の確認を省く設定は、hako のアダプターが起動のときに渡すため、ここには書かない。
+// 権限の確認を省く設定は、同じディレクトリの run が起動のときに渡すため、ここには書かない。
 {
   // Claude Code 本体がコミットと PR に帰属表記を付けるよう誘導するのを止める。
   "attribution": false,
@@ -12,8 +12,8 @@
   "syncClaudeAiSkills": false,
   "syncClaudeAiPlugins": false,
 
-  // hako は入口（turn・worker・interactive・rc）を環境変数 HAKO_MODE で伝えるだけで、指示を足さない。
-  // 入口ごとの事情は modes/ に書き、setup.sh が置いたものをセッションの始めに知らせる。
+  // hako は入口（turn・worker・interactive）を環境変数 HAKO_MODE で伝え、値の意味は hako_instructions.md に書いている。
+  // このセッションの値と、入口ごとのItoguchiの事情は modes/ に書き、setup.sh が置いたものをセッションの始めに知らせる。
   "hooks": {
     "SessionStart": [
       {

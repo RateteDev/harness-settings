@@ -1,7 +1,7 @@
 #!/bin/bash
-# hako（使い捨てのVMでエージェントを動かす仕組み）の VM で動く Claude Code へ、
-# 行動規範と instructions.md・modes/・skills/coding-agent/・settings.jsonc・MCPサーバー itoguchi を反映する。
-# hako が VM の中にこのリポジトリをクローンし、Claude Code を起動する前に1回呼ぶ。VMは使い捨てのため、元に戻す処理は持たない。
+# hako の VM で動く Claude Code へ、行動規範・hako が置いた環境の説明・instructions.md・modes/・
+# global/skills/coding-agent/・settings.jsonc・MCPサーバー itoguchi を反映する。
+# hako が VM の中にこのリポジトリをクローンし、VMを作ったときと、止めていたVMを起こしたときに呼ぶ。元に戻す処理は持たない。
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,17 +11,20 @@ repo_dir="$(git -C "$script_dir" rev-parse --show-toplevel)"
 : "${ITOGUCHI_TOKEN:?ITOGUCHI_TOKEN がありません。ホストで sbx secret set-custom --host itoguchi.ratete.dev --env ITOGUCHI_TOKEN を登録してください}"
 
 mkdir -p ~/.claude
-# 共通の行動規範の後ろに、hako の VM の事情と会話する方法を足す。hako 自身は指示を足さない。
-cat "$repo_dir/AGENTS.md" "$script_dir/instructions.md" > ~/.claude/CLAUDE.md
+# 共通の行動規範の後ろに、hako の環境の説明と、会話する方法を足す。
+# 環境の説明は、hako が自分の版に合わせて VM に置いたものを読む。hako 自身はハーネスへ指示を足さない。
+hako_instructions="$HOME/.hako/hako_instructions.md"
+[ -f "$hako_instructions" ] || { echo "setup.sh: $hako_instructions がありません。hako がVMへ写すのに失敗しています" >&2; exit 1; }
+cat "$repo_dir/global/AGENTS.md" "$hako_instructions" "$script_dir/instructions.md" > ~/.claude/CLAUDE.md
 
 # 入口ごとの事情は、settings.jsonc の SessionStart のフックが HAKO_MODE に合うものを読んで知らせる。
 rm -rf ~/.claude/hako-modes
 cp -r "$script_dir/modes" ~/.claude/hako-modes
 
-# skills/ の直下には、コーディングエージェント向けではないスキルも置く。反映するのは coding-agent/ の下だけにする。
+# global/skills/ の直下には、コーディングエージェント向けではないスキルも置く。反映するのは coding-agent/ の下だけにする。
 rm -rf ~/.claude/skills
 mkdir -p ~/.claude/skills
-cp -r "$repo_dir/skills/coding-agent/." ~/.claude/skills/
+cp -r "$repo_dir/global/skills/coding-agent/." ~/.claude/skills/
 
 # jq はコメントを読めないため、JSONC を読める Bun で変換する。hako のテンプレートには mise で Bun が入っている。
 bun -e 'console.log(JSON.stringify(require(process.argv[1]), null, 2))' "$script_dir/settings.jsonc" > ~/.claude/settings.json

@@ -1,5 +1,5 @@
 // ホストの連携サーバー。Itoguchi の連携の知らせを受け、呼ばれたスレッドに hako の環境を用意してターンを頼む。
-// スレッドとハーネスの組ごとに環境を1つ持ち、スレッドが閉じたら消す。止める・起こす・作り直すは hako が行う。
+// スレッドとハーネスの組ごとに環境を1つ持ち、スレッドが閉じたら消す。止める・起こすは hako が行う。
 // Itoguchi は知らせを1回だけ送り、送り直さない。すぐに応え、hako の操作は後で1つずつ行う。
 import { timingSafeEqual } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -83,7 +83,6 @@ async function called(event: Extract<Event, { type: "post.created" }>) {
       if (vm && (await existing()).has(vm)) {
         const result = await hako("turn", vm, harness, prompt);
         log("ターンを頼みました", { thread: thread.id, vm, result });
-        if (result === "recreated") await notice(thread.id, "環境を作り直しました");
       } else {
         const created = await hako("up");
         state[key] = created;
