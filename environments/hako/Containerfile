@@ -1,0 +1,27 @@
+FROM docker.io/sbx/shell-image:latest
+USER root
+# 日本語フォントは、画面を撮ったときに日本語が豆腐（□）にならないようにするため。
+# tmux は、対話の画面を、ホストとの接続が切れても動かし続けるため。
+RUN apt-get update && apt-get install -y git gh jq curl ca-certificates sqlite3 fonts-noto-cjk tmux && rm -rf /var/lib/apt/lists/*
+# Playwright とブラウザは、どのディレクトリからも使えるよう、作業場所の外に置く。
+RUN mkdir -p /opt/pw /opt/pw-browsers && chown agent:agent /opt/pw /opt/pw-browsers
+USER agent
+RUN curl -fsSL https://mise.run | sh
+# Rust の既定の構成はHTMLの説明書（約1GB）を含み、VMの中では読まないため、最小の構成に整形と静的検査だけを足す。
+# 構成を mise の設定に残さないと、後で mise が Rust を確かめるときに説明書ごと入れ直す。
+RUN ~/.local/bin/mise use -g node@lts bun@latest just@latest "rust[profile=minimal]@latest" npm:wrangler@latest \
+  && ~/.cargo/bin/rustup component add rustfmt clippy \
+  && rm -rf ~/.cache/mise
+# node で動くCLI（`#!/usr/bin/env node`）が、mise の入れた node を PATH から引けるようにする。
+ENV PATH=/home/agent/.local/share/mise/shims:/home/agent/.cargo/bin:/opt/pw/node_modules/.bin:$PATH
+# リポジトリが別の版の Playwright を使うときも、落としたブラウザをVMの中で使い回せるよう、置き場を1つにする。
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers NODE_PATH=/opt/pw/node_modules
+# ブラウザの置き場は Playwright の版ごとに名前が変わるため、版によらない名前（/opt/pw-browsers/chromium）を付けておく。
+RUN cd /opt/pw && npm install --no-save --no-package-lock playwright \
+  && playwright install chromium \
+  && sudo env "PATH=$PATH" playwright install-deps chromium \
+  && sudo rm -rf /var/lib/apt/lists/* ~/.npm \
+  && ln -s "$(node -e 'console.log(require("playwright").chromium.executablePath())')" /opt/pw-browsers/chromium
+# hako template が各ハーネスの install だけをここへ写す。ハーネスのほかのファイルと hako 自身は、VMを作るときに写す。
+COPY --chown=agent:agent harnesses /tmp/harnesses
+RUN for f in /tmp/harnesses/*/install; do ~/.local/bin/mise exec -- bash "$f"; done && rm -rf /tmp/harnesses

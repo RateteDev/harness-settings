@@ -1,0 +1,30 @@
+#!/bin/bash
+# hako がVMの中で呼ぶ。第1引数で動かし方を選ぶ。HAKO_MODE には、どの入口から動いているかが入っている。
+#   start <プロンプト>   HAKO_SESSION_ID の会話を始め、非対話で返答を1つ行う（記録は stream-json で標準出力へ）
+#   resume <プロンプト>  HAKO_SESSION_ID の会話を、非対話で1ターン続ける
+#   worker <プロンプト>  別の新しい会話として、非対話で動く
+#   interactive          端末の対話画面で HAKO_SESSION_ID の会話を始める（HAKO_RESUME=1 なら続ける）
+# サインインは、hako がホストから写した資格情報（同じディレクトリの credentials に並べたファイル）で済んでいる。
+set -euo pipefail
+
+# VMの中で権限の確認を待つと、非対話では誰も答えられず止まる。対話でもVMが隔てられている前提は同じなので、揃えて省く。
+permission=(--permission-mode bypassPermissions)
+
+case "$1" in
+  start | resume | worker)
+    args=(-p --output-format stream-json --verbose "${permission[@]}")
+    # 同じディレクトリで作業役も会話を作るため、直近の会話を続ける --continue ではなく、会話のIDで続ける。
+    case "$1" in
+      start) args+=(--session-id "${HAKO_SESSION_ID:?}") ;;
+      resume) args+=(--resume "${HAKO_SESSION_ID:?}") ;;
+    esac
+    # プロンプトが「-」で始まっても（箇条書きなど）、claude のオプションと読まれないようにする。
+    exec claude "${args[@]}" -- "$2"
+    ;;
+  interactive)
+    args=("${permission[@]}")
+    if [ "${HAKO_RESUME:-}" = 1 ]; then args+=(--resume "${HAKO_SESSION_ID:?}"); else args+=(--session-id "${HAKO_SESSION_ID:?}"); fi
+    exec claude "${args[@]}"
+    ;;
+  *) echo "知らない動かし方です: $1" >&2; exit 2 ;;
+esac

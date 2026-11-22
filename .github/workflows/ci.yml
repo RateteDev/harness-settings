@@ -1,0 +1,27 @@
+# hako に関わる変更のときだけ動かす。スキルや行動規範だけの変更では動かさない。
+name: ci
+on:
+  push:
+    branches: [main]
+    paths:
+      - environments/hako/**
+      - justfile
+      - mise.toml
+      - .github/workflows/**
+  pull_request:
+    paths:
+      - environments/hako/**
+      - justfile
+      - mise.toml
+      - .github/workflows/**
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: environments/hako/go.mod
+          cache-dependency-path: environments/hako/go.mod
+      - uses: jdx/mise-action@v2
+      - run: just ci-local
