@@ -11,6 +11,11 @@ const vmRepo = "/home/agent/.hako/repo";
 const vmScript = `${vmRepo}/environments/hako/vm.sh`;
 const template = "hako-base:latest";
 const kits = ["docker.io/sbx/codex-mixin", "docker.io/sbx/playwright"].flatMap((kit) => ["--kit", kit]);
+/** ハーネスを非対話で1ターン動かすコマンド。直近の会話があれば続ける。後ろにプロンプトを足す。 */
+const harnesses: Record<string, string[]> = {
+  claude: ["claude", "-p", "--continue", "--permission-mode", "bypassPermissions", "--"],
+  codex: ["codex", "exec", "--skip-git-repo-check", "resume", "--last", "--"],
+};
 
 const log = (msg: string, fields: Record<string, unknown> = {}) => console.log(JSON.stringify({ msg, ...fields }));
 
@@ -27,26 +32,28 @@ async function has(kind: "vm" | "template", name: string): Promise<boolean> {
   return (list ?? []).some((e) => (kind === "vm" ? e.name === name : `${e.repository}:${e.tag}`.endsWith(`/${name}`)));
 }
 
-async function create(vm: string, from: string[] = []) {
+/** VMを作り、このクローンの global/ と environments/hako/ を写して、vm.sh の step を動かす。 */
+async function create(vm: string, from: string[], step: "install" | "setup") {
   // 追加部品は認証の宣言も持つため、テンプレートから作るときにも足す。
   await sbx(["create", "--name", vm, ...from, "shell", ...kits]);
   // 全体の方針のままでは道具の導入元に届かないため、このVMだけすべて許可する。
   await sbx(["policy", "allow", "network", "--sandbox", vm, "**"]);
-}
-
-/** このクローンの global/ と environments/hako/ を、VMへ写す。 */
-async function sync(vm: string) {
-  const tar = Bun.spawn(["tar", "-C", repoDir, "-cf", "-", "global", "environments/hako"], { stdout: "pipe" });
-  await sbx(["exec", "-i", vm, "bash", "-c", `rm -rf ${vmRepo} && mkdir -p ${vmRepo} && tar -C ${vmRepo} -xf -`], tar.stdout);
+  try {
+    const tar = Bun.spawn(["tar", "-C", repoDir, "-cf", "-", "global", "environments/hako"], { stdout: "pipe" });
+    await sbx(["exec", "-i", vm, "bash", "-c", `mkdir -p ${vmRepo} && tar -C ${vmRepo} -xf -`], tar.stdout);
+    await sbx(["exec", vm, vmScript, step]);
+  } catch (e) {
+    // 設定の途中のVMを残すと、次に呼ばれたときに設定されないまま使われる。
+    await sbx(["rm", "--force", vm]).catch(() => {});
+    throw e;
+  }
 }
 
 async function buildTemplate() {
   const builder = "hako-template-builder";
   await sbx(["rm", "--force", builder]).catch(() => {});
-  await create(builder);
   try {
-    await sync(builder);
-    await sbx(["exec", builder, vmScript, "install"]);
+    await create(builder, [], "install");
     await sbx(["exec", builder, "rm", "-rf", "/home/agent/.hako"]);
     await sbx(["stop", builder]);
     await sbx(["template", "rm", "--force", template]).catch(() => {});
@@ -72,6 +79,7 @@ function serve() {
       .split(",")
       .map((pair) => pair.split(":").map((s) => s.trim()) as [string, string]),
   );
+  for (const harness of agents.values()) if (!harnesses[harness]) throw new Error(`AGENTS に知らないハーネスがあります: ${harness}`);
 
   async function notice(thread: string, text: string) {
     // 受け取り用のURLそのものが秘密なので、失敗の理由は記録しない。
@@ -93,10 +101,11 @@ function serve() {
         if (!(await has("vm", vm))) {
           await notice(thread, "環境を用意しています");
           if (!(await has("template", template))) await buildTemplate();
-          await create(vm, ["-t", template]);
+          await create(vm, ["-t", template], "setup");
         }
-        await sync(vm);
-        await sbx(["exec", vm, vmScript, "turn", harness, mine.map((c) => c.prompt).join("\n\n")]);
+        // 標準入力を閉じないと、ハーネスが追加の入力を待つ。
+        const prompt = mine.map((c) => c.prompt).join("\n\n");
+        await sbx(["exec", "-w", "/home/agent/workspace", vm, "bash", "-c", 'exec "$@" </dev/null', "turn", ...harnesses[harness], prompt]);
         log("ターンが終わりました", { thread, vm, harness });
       } catch (e) {
         log("ターンを動かせませんでした", { thread, vm, harness, error: String(e) });
