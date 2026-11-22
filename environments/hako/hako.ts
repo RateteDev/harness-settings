@@ -6,6 +6,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { tmpdir } from "node:os";
 
 const remote = "https://github.com/RateteDev/harness-settings";
+const itoguchi = "https://itoguchi.ratete.dev/mcp";
 const template = "hako-base:latest";
 const kits = ["docker.io/sbx/codex-mixin", "docker.io/sbx/playwright"].flatMap((kit) => ["--kit", kit]);
 /** ハーネスを非対話で1ターン動かすコマンド。直近の会話があれば続ける。後ろにプロンプトを足す。 */
@@ -34,6 +35,8 @@ async function create(vm: string, ...from: string[]) {
   await sbx("create", "--name", vm, ...from, "shell", ...kits);
   // 全体の方針のままでは道具の導入元に届かないため、このVMだけすべて許可する。
   await sbx("policy", "allow", "network", "--sandbox", vm, "**");
+  // 追加部品がVMを作るたびに Codex の設定ファイルを置き直すため、Codex の MCP サーバーだけはテンプレートに入れられない。
+  await sbx("exec", vm, "codex", "mcp", "add", "itoguchi", "--url", itoguchi, "--bearer-token-env-var", "ITOGUCHI_TOKEN");
 }
 
 async function buildTemplate() {
@@ -41,7 +44,7 @@ async function buildTemplate() {
   await sbx("rm", "--force", builder).catch(() => {});
   try {
     await create(builder);
-    await sbx("exec", builder, "bash", "-c", `git clone --depth 1 ${remote} /tmp/repo && /tmp/repo/environments/hako/install.sh && rm -rf /tmp/repo`);
+    await sbx("exec", builder, "bash", "-c", `git clone --depth 1 ${remote} /tmp/repo && /tmp/repo/environments/hako/install.sh ${itoguchi} && rm -rf /tmp/repo`);
     await sbx("stop", builder);
     await sbx("template", "rm", "--force", template).catch(() => {});
     await sbx("template", "save", builder, template);

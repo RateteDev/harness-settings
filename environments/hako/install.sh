@@ -2,7 +2,7 @@
 # テンプレートを作るときに、VMの中で1回動く。道具とハーネスを入れ、各ハーネスへ指示・スキル・MCPサーバーを設定する。
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
-itoguchi=https://itoguchi.ratete.dev/mcp
+itoguchi="$1"
 
 sudo apt-get update -qq
 sudo apt-get install -y -qq build-essential
@@ -31,6 +31,5 @@ JSON
 # shellcheck disable=SC2016
 claude mcp add --scope user --transport http itoguchi "$itoguchi" --header 'Authorization: Bearer ${ITOGUCHI_TOKEN}'
 
-# Codex と Playwright は hako.ts の kits で入っている。
+# Codex と Playwright は hako.ts の kits で入っている。Codex の MCP サーバーは hako.ts がVMを作るたびに登録する。
 cat "$repo/global/AGENTS.md" "$repo/environments/hako/instructions.md" > ~/.codex/AGENTS.md
-codex mcp add itoguchi --url "$itoguchi" --bearer-token-env-var ITOGUCHI_TOKEN
