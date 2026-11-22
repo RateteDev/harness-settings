@@ -183,7 +183,7 @@
             // 環境を作り直すまで古い版のまま動くため。古いままでも困らないよう入口は git の2行だけにし、変わる処理は更新後に動く
             // session-start-hook.sh へ置く。キャッシュされるかどうかは確認していない。
             // ディレクトリは setup-script.sh の REPO_DIR と一致させる。cd で移るため、移る前の作業ディレクトリを OLDPWD で渡す。
-            "command": "cd /opt/harness-settings && git fetch -q --depth 1 origin HEAD && git reset -q --hard FETCH_HEAD && ./anthropic/claude-code-cloud-setup/session-start-hook.sh \"$OLDPWD\""
+            "command": "cd /opt/harness-settings && git fetch -q --depth 1 origin HEAD && git reset -q --hard FETCH_HEAD && ./environments/claude-code-cloud/session-start-hook.sh \"$OLDPWD\""
           }
         ]
       }
@@ -195,7 +195,7 @@
             "type": "command",
             // Claude の回答を表示する直前に Gemini で書き直す。絶対パスを指すのは、本体を直してもこのファイルを変えずに済ませるため。
             // このファイル名もキャッシュ済みの設定に書かれうるので、変えると環境を作り直すまでフックが失敗する。
-            "command": "/opt/harness-settings/anthropic/claude-code-cloud-setup/message-display-hook.sh",
+            "command": "/opt/harness-settings/environments/claude-code-cloud/message-display-hook.sh",
             // 既定の10秒では長い回答の書き直しに足りない恐れがある。スクリプト内の curl の制限（45秒）より長くする。
             "timeout": 60
           }

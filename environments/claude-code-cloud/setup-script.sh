@@ -12,4 +12,4 @@ if [ -d "$REPO_DIR/.git" ]; then
 else
   git clone --depth 1 https://github.com/RateteDev/harness-settings "$REPO_DIR"
 fi
-exec "$REPO_DIR/anthropic/claude-code-cloud-setup/session-start-hook.sh"
+exec "$REPO_DIR/environments/claude-code-cloud/session-start-hook.sh"

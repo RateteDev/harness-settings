@@ -1,5 +1,5 @@
 #!/bin/bash
-# SessionStart フックの本体。skills/coding-agent/ と、settings.jsonc から作った settings.json を ~/.claude へ反映し、作業ブランチの名前を整える。
+# SessionStart フックの本体。global/skills/coding-agent/ と、settings.jsonc から作った settings.json を ~/.claude へ反映し、作業ブランチの名前を整える。
 # settings.json は内容が同じなら置き換えない。引数は、作業リポジトリのディレクトリ（任意）。
 # Claude Code on the web のクラウド環境を組み立てる流れの要でもあるため、全体の図をここに置く。
 #
@@ -35,8 +35,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
-# skills/ の直下には、コーディングエージェント向けではないスキルも置く。反映するのは coding-agent/ の下だけにする。
-SKILLS_SRC="$repo_dir/skills/coding-agent"
+# global/skills/ の直下には、コーディングエージェント向けではないスキルも置く。反映するのは coding-agent/ の下だけにする。
+SKILLS_SRC="$repo_dir/global/skills/coding-agent"
 SKILLS_DIR="$HOME/.claude/skills"
 SETTINGS_SRC="$SCRIPT_DIR/settings.jsonc"
 SETTINGS_DEST="$HOME/.claude/settings.json"
