@@ -2,7 +2,7 @@
 # テンプレートを作るときに、VMの中で1回動く。道具とハーネスを入れ、各ハーネスへ指示・スキル・MCPサーバーを設定する。
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
-itoguchi="$1"
+itoguchi=https://itoguchi.ratete.dev/mcp
 
 sudo apt-get update -qq
 sudo apt-get install -y -qq build-essential
@@ -11,8 +11,8 @@ curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --component rust
 # sbx exec はログインシェルを通さないため、sbx がどの bash にも読ませるファイルに PATH を足す。
 # shellcheck disable=SC2016
 echo 'export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"' | sudo tee -a /etc/sandbox-persistent.sh
+~/.bun/bin/bunx playwright install --with-deps chromium
 
-# Claude Code だけここで入れる。Docker の claude-mixin は、sbx に登録した鍵が効かなくなるため使わない。
 curl -fsSL https://claude.ai/install.sh | bash
 mkdir -p ~/.claude
 cat "$repo/global/AGENTS.md" "$repo/environments/hako/instructions.md" > ~/.claude/CLAUDE.md
@@ -31,5 +31,3 @@ JSON
 # shellcheck disable=SC2016
 claude mcp add --scope user --transport http itoguchi "$itoguchi" --header 'Authorization: Bearer ${ITOGUCHI_TOKEN}'
 
-# Codex と Playwright は hako.ts の kits で入っている。Codex の MCP サーバーは hako.ts がVMを作るたびに登録する。
-cat "$repo/global/AGENTS.md" "$repo/environments/hako/instructions.md" > ~/.codex/AGENTS.md
