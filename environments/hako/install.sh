@@ -15,7 +15,8 @@ echo 'export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"' | sudo tee -a /etc/sa
 
 curl -fsSL https://claude.ai/install.sh | bash
 mkdir -p ~/.claude
-cat "$repo/global/AGENTS.md" "$repo/environments/hako/instructions.md" > ~/.claude/CLAUDE.md
+# 既定のシステムプロンプトの代わりに渡すファイル。hako.ts が --system-prompt-file で指す。
+(cat "$repo/global/system-prompt.md"; echo; cat "$repo/environments/hako/instructions.md") > ~/.claude/system-prompt.md
 cp -r "$repo/global/skills" ~/.claude/skills
 # wait_for_events を外すのは、ターンの中で次の呼びかけを待つとVMが止まらないため。
 cat > ~/.claude/settings.json <<'JSON'

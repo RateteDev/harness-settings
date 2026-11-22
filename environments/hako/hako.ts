@@ -9,7 +9,7 @@ const remote = "https://github.com/RateteDev/harness-settings";
 const template = "hako-base:latest";
 /** ハーネスを非対話で1ターン動かすコマンド。直近の会話があれば続ける。後ろにプロンプトを足す。 */
 const harnesses: Record<string, string[]> = {
-  claude: ["claude", "-p", "--continue", "--permission-mode", "bypassPermissions", "--"],
+  claude: ["claude", "-p", "--continue", "--permission-mode", "bypassPermissions", "--system-prompt-file", "/home/agent/.claude/system-prompt.md", "--"],
 };
 
 const log = (msg: string, fields: Record<string, unknown> = {}) => console.log(JSON.stringify({ msg, ...fields }));
