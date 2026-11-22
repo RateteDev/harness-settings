@@ -1,14 +1,11 @@
 // ホストで常駐し、Itoguchi で呼ばれたら、そのスレッドのVM（sbx）でハーネスを非対話で1ターン動かす。
 //   bun hako.ts            知らせを待ち受ける
-//   bun hako.ts template   道具とハーネスを入れたテンプレートを作り直す
+//   bun hako.ts template   リモートの install.sh で、VMの元になるテンプレートを作り直す
 // VMは、最後の sbx exec が終わって30秒ほどで sbx が止め、次の sbx exec で起こす。
 import { createHash, timingSafeEqual } from "node:crypto";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
 
-const repoDir = join(import.meta.dir, "../..");
-const vmRepo = "/home/agent/.hako/repo";
-const vmScript = `${vmRepo}/environments/hako/vm.sh`;
+const remote = "https://github.com/RateteDev/harness-settings";
 const template = "hako-base:latest";
 const kits = ["docker.io/sbx/codex-mixin", "docker.io/sbx/playwright"].flatMap((kit) => ["--kit", kit]);
 /** ハーネスを非対話で1ターン動かすコマンド。直近の会話があれば続ける。後ろにプロンプトを足す。 */
@@ -19,47 +16,37 @@ const harnesses: Record<string, string[]> = {
 
 const log = (msg: string, fields: Record<string, unknown> = {}) => console.log(JSON.stringify({ msg, ...fields }));
 
-async function sbx(args: string[], stdin?: ReadableStream<Uint8Array>): Promise<string> {
+async function sbx(...args: string[]): Promise<string> {
   // sbx には今いるディレクトリをVMへつなぐコマンドがあるため、手元のディレクトリから呼ばない。
-  const proc = Bun.spawn(["sbx", ...args], { cwd: tmpdir(), stdin: stdin ?? "ignore", stdout: "pipe", stderr: "pipe" });
+  const proc = Bun.spawn(["sbx", ...args], { cwd: tmpdir(), stdin: "ignore", stdout: "pipe", stderr: "pipe" });
   const [out, err, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
   if (code !== 0) throw new Error(`sbx ${args[0]} が失敗しました（${code}）: ${(err || out).trim().slice(-500)}`);
   return out;
 }
 
 async function has(kind: "vm" | "template", name: string): Promise<boolean> {
-  const list = JSON.parse(await sbx(kind === "vm" ? ["ls", "--json"] : ["template", "ls", "--json"])) as Record<string, string>[] | null;
+  const list = JSON.parse(await sbx(...(kind === "vm" ? ["ls"] : ["template", "ls"]), "--json")) as Record<string, string>[] | null;
   return (list ?? []).some((e) => (kind === "vm" ? e.name === name : `${e.repository}:${e.tag}`.endsWith(`/${name}`)));
 }
 
-/** VMを作り、このクローンの global/ と environments/hako/ を写して、vm.sh の step を動かす。 */
-async function create(vm: string, from: string[], step: "install" | "setup") {
+async function create(vm: string, ...from: string[]) {
   // 追加部品は認証の宣言も持つため、テンプレートから作るときにも足す。
-  await sbx(["create", "--name", vm, ...from, "shell", ...kits]);
+  await sbx("create", "--name", vm, ...from, "shell", ...kits);
   // 全体の方針のままでは道具の導入元に届かないため、このVMだけすべて許可する。
-  await sbx(["policy", "allow", "network", "--sandbox", vm, "**"]);
-  try {
-    const tar = Bun.spawn(["tar", "-C", repoDir, "-cf", "-", "global", "environments/hako"], { stdout: "pipe" });
-    await sbx(["exec", "-i", vm, "bash", "-c", `mkdir -p ${vmRepo} && tar -C ${vmRepo} -xf -`], tar.stdout);
-    await sbx(["exec", vm, vmScript, step]);
-  } catch (e) {
-    // 設定の途中のVMを残すと、次に呼ばれたときに設定されないまま使われる。
-    await sbx(["rm", "--force", vm]).catch(() => {});
-    throw e;
-  }
+  await sbx("policy", "allow", "network", "--sandbox", vm, "**");
 }
 
 async function buildTemplate() {
   const builder = "hako-template-builder";
-  await sbx(["rm", "--force", builder]).catch(() => {});
+  await sbx("rm", "--force", builder).catch(() => {});
   try {
-    await create(builder, [], "install");
-    await sbx(["exec", builder, "rm", "-rf", "/home/agent/.hako"]);
-    await sbx(["stop", builder]);
-    await sbx(["template", "rm", "--force", template]).catch(() => {});
-    await sbx(["template", "save", builder, template]);
+    await create(builder);
+    await sbx("exec", builder, "bash", "-c", `git clone --depth 1 ${remote} /tmp/repo && /tmp/repo/environments/hako/install.sh && rm -rf /tmp/repo`);
+    await sbx("stop", builder);
+    await sbx("template", "rm", "--force", template).catch(() => {});
+    await sbx("template", "save", builder, template);
   } finally {
-    await sbx(["rm", "--force", builder]).catch(() => {});
+    await sbx("rm", "--force", builder).catch(() => {});
   }
 }
 
@@ -99,13 +86,12 @@ function serve() {
       calls.splice(0, calls.length, ...calls.filter((c) => c.harness !== harness));
       try {
         if (!(await has("vm", vm))) {
-          await notice(thread, "環境を用意しています");
           if (!(await has("template", template))) await buildTemplate();
-          await create(vm, ["-t", template], "setup");
+          await create(vm, "-t", template);
         }
         // 標準入力を閉じないと、ハーネスが追加の入力を待つ。
         const prompt = mine.map((c) => c.prompt).join("\n\n");
-        await sbx(["exec", "-w", "/home/agent/workspace", vm, "bash", "-c", 'exec "$@" </dev/null', "turn", ...harnesses[harness], prompt]);
+        await sbx("exec", "-w", "/home/agent/workspace", vm, "bash", "-c", 'exec "$@" </dev/null', "turn", ...harnesses[harness], prompt);
         log("ターンが終わりました", { thread, vm, harness });
       } catch (e) {
         log("ターンを動かせませんでした", { thread, vm, harness, error: String(e) });
