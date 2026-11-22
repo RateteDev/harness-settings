@@ -1,5 +1,0 @@
-# shell の土台に足す Docker 公式の追加部品。1行に1つ書く。
-# Codex は、ChatGPT のサインインを sbx がホスト側で扱うため、追加部品で入れる。
-docker.io/sbx/codex-mixin
-# Playwright と Chromium。Node.js がなければ一緒に入る。
-docker.io/sbx/playwright

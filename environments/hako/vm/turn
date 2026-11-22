@@ -1,7 +1,7 @@
 #!/bin/bash
 # VMの中で、ハーネスの非対話の1ターンを動かす。ホストの hako.ts が sbx exec で呼ぶ。
 #   turn <ハーネス> <プロンプト>
-# 設定の反映（<ハーネス>/setup.sh）を済ませてから、<ハーネス>/run にプロンプトを渡す。
+# 同じディレクトリの <ハーネス>/setup.sh で設定を反映してから、<ハーネス>/run にプロンプトを渡す。
 # 記録は ~/.hako/state/<ハーネス>/ に残し、失敗したときは末尾を標準エラーへ出す。
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

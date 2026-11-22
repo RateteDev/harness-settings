@@ -2,7 +2,7 @@
 // VMを止めるのは sbx に任せる（最後の sbx exec が終わって30秒ほどで止まり、次の sbx exec で起きる）。
 // VMの中で使うファイル（global/ と environments/hako/）は、ターンのたびにこのクローンから写す。
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -10,23 +10,25 @@ const hakoDir = import.meta.dir;
 const repoDir = join(hakoDir, "../..");
 /** VMの中の、このリポジトリの写しの置き場。リポジトリと同じ並びで global/ と environments/hako/ を置く。 */
 const vmRepo = "/home/agent/.hako/repo";
-const vmHako = `${vmRepo}/environments/hako`;
+const vmDir = `${vmRepo}/environments/hako/vm`;
 
-/** run を持つディレクトリをハーネスとして扱う。 */
+/** vm/ の下の、run を持つディレクトリをハーネスとして扱う。 */
 export function harnesses(): string[] {
-  return readdirSync(hakoDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && existsSync(join(hakoDir, e.name, "run")))
+  const dir = join(hakoDir, "vm");
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && existsSync(join(dir, e.name, "run")))
     .map((e) => e.name)
     .sort();
 }
 
-/** kits に書いた追加部品を読む。空行と # で始まる行は飛ばす。 */
-export function parseKits(text: string): string[] {
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line !== "" && !line.startsWith("#"));
-}
+/** shell の土台に足す Docker 公式の追加部品。 */
+const kits = [
+  // Codex は、ChatGPT のサインインを sbx がホスト側で扱うため、追加部品で入れる。
+  "docker.io/sbx/codex-mixin",
+  // Playwright と Chromium。Node.js がなければ一緒に入る。
+  "docker.io/sbx/playwright",
+];
+const kitArgs = kits.flatMap((kit) => ["--kit", kit]);
 
 /** 呼ぶ側の鍵（スレッドのidなど）から、VMの名前を決める。対応を別に覚えなくて済むよう、鍵から導く。 */
 export function nameFor(key: string): string {
@@ -64,10 +66,6 @@ async function sync(name: string) {
 /** 道具とハーネスを入れ終えたVMを写したテンプレート。作るたびに入れると数分かかるため、1回入れたものを使い回す。 */
 const template = "hako-base:latest";
 
-function kitArgs(): string[] {
-  return parseKits(readFileSync(join(hakoDir, "kits"), "utf8")).flatMap((kit) => ["--kit", kit]);
-}
-
 async function hasTemplate(): Promise<boolean> {
   const [repository, tag] = template.split(":");
   const list = JSON.parse(await must("テンプレートの一覧", ["template", "ls", "--json"])) as { repository: string; tag: string }[] | null;
@@ -84,11 +82,11 @@ export async function buildTemplate() {
   const builder = "hako-template-builder";
   await sbx(["rm", "--force", builder]);
   // パスを渡さずに作ると、手元のディレクトリとつながないVMになる。
-  await must("環境の作成", ["create", "--name", builder, "shell", ...kitArgs()]);
+  await must("環境の作成", ["create", "--name", builder, "shell", ...kitArgs]);
   try {
     await allowNetwork(builder);
     await sync(builder);
-    await must("道具の導入", ["exec", builder, "bash", `${vmHako}/install.sh`]);
+    await must("道具の導入", ["exec", builder, "bash", `${vmDir}/install.sh`]);
     // 写しはターンのたびに入れ替えるため、テンプレートには残さない。
     await must("後片付け", ["exec", builder, "rm", "-rf", "/home/agent/.hako"]);
     await must("環境の停止", ["stop", builder]);
@@ -103,7 +101,7 @@ export async function buildTemplate() {
 export async function create(name: string) {
   if (!(await hasTemplate())) await buildTemplate();
   // 追加部品は、認証を sbx の中継に任せる宣言も持つため、テンプレートから作るときにも足す。
-  await must("環境の作成", ["create", "--name", name, "-t", template, "shell", ...kitArgs()]);
+  await must("環境の作成", ["create", "--name", name, "-t", template, "shell", ...kitArgs]);
   await allowNetwork(name);
 }
 
@@ -111,7 +109,7 @@ export async function create(name: string) {
 export async function turn(name: string, harness: string, prompt: string) {
   if (!harnesses().includes(harness)) throw new Error(`知らないハーネスです: ${harness}（${harnesses().join("|")}）`);
   await sync(name);
-  await must(`${harness} のターン`, ["exec", name, `${vmHako}/turn`, harness, prompt]);
+  await must(`${harness} のターン`, ["exec", name, `${vmDir}/turn`, harness, prompt]);
 }
 
 // 所有者がテンプレートを作り直すときの入口: bun environments/hako/hako.ts template

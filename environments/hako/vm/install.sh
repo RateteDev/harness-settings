@@ -1,7 +1,6 @@
 #!/bin/bash
-# VMを作った直後に1回、VMの中で動かす。開発道具と、追加部品（kits）では入れないハーネスを入れる。
+# テンプレートを作るときに1回、VMの中で動かす。開発道具と、追加部品（hako.ts の kits）では入れないハーネスを入れる。
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "== cc"
 # Rust はリンクにCのコンパイラを使うが、shell の土台には入っていない。
@@ -20,9 +19,8 @@ curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --component rust
 line='export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:$PATH"'
 grep -qxF "$line" /etc/sandbox-persistent.sh || echo "$line" | sudo tee -a /etc/sandbox-persistent.sh >/dev/null
 
-for f in "$here"/*/install; do
-  [ -f "$f" ] || continue
-  echo "== $(basename "$(dirname "$f")")"
-  bash "$f"
-done
+echo "== claude"
+# Docker の claude-mixin は使わない。追加部品が認証を引き受け、sbx に登録した鍵（CLAUDE_CODE_OAUTH_TOKEN）が効かなくなるため。
+curl -fsSL https://claude.ai/install.sh | bash >/dev/null
+
 echo "== 済み"

@@ -1,4 +1,0 @@
-#!/bin/bash
-# Docker の claude-mixin は使わない。追加部品が認証を引き受け、sbx に登録した鍵（CLAUDE_CODE_OAUTH_TOKEN）が効かなくなるため。
-set -euo pipefail
-curl -fsSL https://claude.ai/install.sh | bash >/dev/null

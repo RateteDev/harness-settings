@@ -4,7 +4,8 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-hako_dir="$(dirname "$script_dir")"
+# このファイルは environments/hako/vm/<ハーネス>/ にある。
+hako_dir="$(cd "$script_dir/../.." && pwd)"
 # ホストは global/ と environments/hako/ を、リポジトリと同じ並びで写す。
 repo_dir="$(cd "$hako_dir/../.." && pwd)"
 # Itoguchi のキーは sbx のシークレットに置かれ、VM の環境変数には代わりの値だけが入る。
@@ -12,7 +13,7 @@ repo_dir="$(cd "$hako_dir/../.." && pwd)"
 : "${ITOGUCHI_TOKEN:?ITOGUCHI_TOKEN がありません。ホストで sbx secret set-custom --host itoguchi.ratete.dev --env ITOGUCHI_TOKEN を登録してください}"
 
 mkdir -p ~/.claude
-cat "$repo_dir/global/AGENTS.md" "$hako_dir/hako_instructions.md" "$hako_dir/itoguchi-link/instructions.md" > ~/.claude/CLAUDE.md
+cat "$repo_dir/global/AGENTS.md" "$hako_dir/instructions.md" > ~/.claude/CLAUDE.md
 
 # 消したスキルも反映されるよう、丸ごと置き換える。
 rm -rf ~/.claude/skills

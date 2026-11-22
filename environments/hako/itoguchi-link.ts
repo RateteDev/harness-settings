@@ -2,7 +2,7 @@
 // スレッドごとにVMを1つ持ち、呼ばれたハーネスはどれも同じVMで動く。VMを止めるのは sbx に任せ、消すのは所有者が行う。
 // Itoguchi は知らせを1回だけ送り、送り直さない。すぐに応え、VMの操作は後で行う。
 import { timingSafeEqual } from "node:crypto";
-import { create, exists, nameFor, turn } from "../hako.ts";
+import { create, exists, nameFor, turn } from "./hako.ts";
 
 type Event =
   | { type: "post.created"; thread: { id: string; url: string }; post: { seq: number; author: { name: string }; mentions: string[] } }
