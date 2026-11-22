@@ -12,21 +12,9 @@
   "syncClaudeAiSkills": false,
   "syncClaudeAiPlugins": false,
 
-  // hako は入口（turn・worker・interactive）を環境変数 HAKO_MODE で伝え、値の意味は hako_instructions.md に書いている。
-  // このセッションの値と、入口ごとのItoguchiの事情は modes/ に書き、setup.sh が置いたものをセッションの始めに知らせる。
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          { "type": "command", "command": "cat \"$HOME/.claude/hako-modes/$HAKO_MODE.md\" 2>/dev/null || true" }
-        ]
-      }
-    ]
-  },
-
   "permissions": {
-    // hako の VM では、呼ばれたことをホストの連携サーバーが新しいターンとして届ける。
-    // ターンの中で待つと、プロセスが終わらずVMを止められず、同じ呼びかけに2回答えることにもなる。
+    // 呼ばれたことは、ホストの連携サーバーが新しいターンとして届ける。
+    // ターンの中で待つと、プロセスが終わらずVMが止まらず、同じ呼びかけに2回答えることにもなる。
     // 権限の確認を省く設定でも deny は効き、道具の一覧から消えることを確かめてある。
     "deny": ["mcp__itoguchi__wait_for_events"]
   }
