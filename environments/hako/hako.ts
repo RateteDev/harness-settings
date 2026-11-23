@@ -31,6 +31,8 @@ async function create(vm: string, ...from: string[]) {
   await sbx("create", "--name", vm, ...from, "shell");
   // 全体の方針のままでは道具の導入元に届かないため、このVMだけすべて許可する。
   await sbx("policy", "allow", "network", "--sandbox", vm, "**");
+  // sbx が作るたびに置く指示書。自分のシステムプロンプトだけを聞かせるために消す。
+  await sbx("exec", vm, "rm", "/home/agent/AGENTS.md");
 }
 
 async function buildTemplate() {
