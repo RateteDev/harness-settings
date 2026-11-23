@@ -1,16 +1,12 @@
 // ホストで常駐し、Itoguchi で呼ばれたら、そのスレッドのVM（sbx）でハーネスを非対話で1ターン動かす。
 //   bun hako.ts            知らせを待ち受ける
 //   bun hako.ts template   リモートの install.sh で、VMの元になるテンプレートを作り直す
-// VMは、最後の sbx exec が終わって30秒ほどで sbx が止め、次の sbx exec で起こす。
+// VMは起こしたままにする。
 import { createHash, timingSafeEqual } from "node:crypto";
 import { tmpdir } from "node:os";
 
 const remote = "https://github.com/RateteDev/harness-settings";
 const template = "hako-base:latest";
-/** ハーネスを非対話で1ターン動かすコマンド。直近の会話があれば続ける。後ろにプロンプトを足す。 */
-const harnesses: Record<string, string[]> = {
-  claude: ["claude", "-p", "--continue", "--permission-mode", "bypassPermissions", "--system-prompt-file", "/home/agent/.claude/system-prompt.md", "--"],
-};
 
 const log = (msg: string, fields: Record<string, unknown> = {}) => console.log(JSON.stringify({ msg, ...fields }));
 
@@ -22,10 +18,12 @@ async function sbx(...args: string[]): Promise<string> {
   return out;
 }
 
-async function has(kind: "vm" | "template", name: string): Promise<boolean> {
-  const list = JSON.parse(await sbx(...(kind === "vm" ? ["ls"] : ["template", "ls"]), "--json")) as Record<string, string>[] | null;
-  return (list ?? []).some((e) => (kind === "vm" ? e.name === name : `${e.repository}:${e.tag}`.endsWith(`/${name}`)));
+async function list(kind: "vm" | "template"): Promise<string[]> {
+  const entries = JSON.parse(await sbx(...(kind === "vm" ? ["ls"] : ["template", "ls"]), "--json")) as Record<string, string>[] | null;
+  return (entries ?? []).map((e) => (kind === "vm" ? e.name : `${e.repository}:${e.tag}`));
 }
+
+const hasVm = async (vm: string) => (await list("vm")).includes(vm);
 
 async function create(vm: string, ...from: string[]) {
   await sbx("create", "--name", vm, ...from, "shell");
@@ -65,11 +63,23 @@ function serve() {
       .split(",")
       .map((pair) => pair.split(":").map((s) => s.trim()) as [string, string]),
   );
-  for (const harness of agents.values()) if (!harnesses[harness]) throw new Error(`AGENTS に知らないハーネスがあります: ${harness}`);
 
   async function notice(thread: string, text: string) {
     // 受け取り用のURLそのものが秘密なので、失敗の理由は記録しない。
     await fetch(noticeUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ thread, text }) }).catch(() => {});
+  }
+
+  const vmName = /^hako-[0-9a-f]{12}$/;
+  const held = new Set<string>();
+  /** sbx は最後の sbx exec が終わるとVMを止めるため、終わらないコマンドを動かしておく。 */
+  async function hold(vm: string) {
+    if (held.has(vm)) return;
+    held.add(vm);
+    while (await hasVm(vm).catch(() => true)) {
+      await sbx("exec", vm, "sleep", "infinity").catch(() => {});
+      await Bun.sleep(5000);
+    }
+    held.delete(vm);
   }
 
   /** スレッドごとの、まだ動かしていない呼びかけ。 */
@@ -84,13 +94,12 @@ function serve() {
       const mine = calls.filter((c) => c.harness === harness);
       calls.splice(0, calls.length, ...calls.filter((c) => c.harness !== harness));
       try {
-        if (!(await has("vm", vm))) {
-          if (!(await has("template", template))) await buildTemplate();
+        if (!(await hasVm(vm))) {
+          if (!(await list("template")).some((t) => t.endsWith(`/${template}`))) await buildTemplate();
           await create(vm, "-t", template);
         }
-        // 標準入力を閉じないと、ハーネスが追加の入力を待つ。
-        const prompt = mine.map((c) => c.prompt).join("\n\n");
-        await sbx("exec", "-w", "/home/agent/workspace", vm, "bash", "-c", 'exec "$@" </dev/null', "turn", ...harnesses[harness], prompt);
+        hold(vm);
+        await sbx("exec", vm, "hako", "turn", harness, mine.map((c) => c.prompt).join("\n\n"));
         log("ターンが終わりました", { thread, vm, harness });
       } catch (e) {
         log("ターンを動かせませんでした", { thread, vm, harness, error: String(e) });
@@ -122,6 +131,7 @@ function serve() {
       return new Response("ok");
     },
   });
+  list("vm").then((vms) => vms.filter((vm) => vmName.test(vm)).forEach(hold));
   log("待ち受けています");
 }
 
