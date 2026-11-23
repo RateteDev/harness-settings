@@ -19,6 +19,7 @@ echo 'export PATH="$HOME/.bun/bin:$HOME/.cargo/bin:/usr/local/go/bin:$PATH"' | s
 sudo npm install --global --silent agent-browser
 agent-browser install --with-deps
 install -D -m 755 "$repo/environments/hako/hako.sh" ~/.local/bin/hako
+install -D -m 644 "$repo/environments/hako/later-mcp.ts" ~/.local/share/hako/later-mcp.ts
 
 curl -fsSL https://claude.ai/install.sh | bash
 mkdir -p ~/.claude
@@ -26,13 +27,15 @@ mkdir -p ~/.claude
 (cat "$repo/global/system-prompt.md"; echo; cat "$repo/environments/hako/instructions.md") > ~/.claude/system-prompt.md
 cp -r "$repo/global/skills" ~/.claude/skills
 # Itoguchi の wait_for_events は、次の呼びかけが新しいターンとして届くので使わせない。
-# Claude Code の予約のツールは、ターンごとに終了する -p では発火しないので使わせない。予約は hako later で行う。
+# Claude Code の予約のツールは、ターンごとに終了する -p では発火しないので使わせない。予約は later-mcp.ts のツールで行う。
+# MCPのツールは、既定では名前だけが見え、説明は探したときに読まれる。予約のツールに気づけるよう、説明を始めから見せる。
 cat > ~/.claude/settings.json <<'JSON'
 {
   "attribution": false,
   "includeGitInstructions": false,
   "syncClaudeAiSkills": false,
   "syncClaudeAiPlugins": false,
+  "env": { "ENABLE_TOOL_SEARCH": "false" },
   "permissions": { "deny": ["mcp__itoguchi__wait_for_events", "CronCreate", "CronDelete", "CronList", "ScheduleWakeup"] }
 }
 JSON
@@ -40,3 +43,4 @@ JSON
 # shellcheck disable=SC2016
 claude mcp add --scope user --transport http itoguchi "$itoguchi" --header 'Authorization: Bearer ${ITOGUCHI_TOKEN}'
 
+claude mcp add --scope user hako -- ~/.bun/bin/bun ~/.local/share/hako/later-mcp.ts

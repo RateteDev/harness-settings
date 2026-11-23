@@ -14,12 +14,6 @@
 
 - 自分で入れた道具の PATH や環境変数は、`/etc/sandbox-persistent.sh` に `export` の行として足す。このファイルはコマンドを実行するたびに読まれるため、シェルの補完スクリプトを読み込む行を入れると、以後のコマンドが何も返さなくなる。
 - GitHub への認証は、VMの外の中継が通信に差し込む。`gh auth status` が未ログインと出ても、`git push` や `gh` はそのまま使える。
-- ターンを終えた後で続きを行いたいときは、`hako later` で次のターンを予約する。時間が過ぎるか、渡したコマンドが成功すると、渡した文をプロンプトにして、同じ会話の新しいターンが始まる。予約は、VMが止まると消える。
-
-```bash
-hako later --after 30m "ビルドの結果を確かめて、スレッドに報告する"
-hako later --when 'gh run view 123 --json status -q .status | grep -q completed' --every 5m "CI の結果を報告する"
-```
 </あなたが動いている実行環境>
 
 <Itoguchiでの会話の進め方>
