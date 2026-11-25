@@ -26,7 +26,7 @@ mkdir -p ~/.claude
 # 既定のシステムプロンプトの代わりに渡すファイル。hako.sh が --system-prompt-file で指す。
 (cat "$repo/global/system-prompt.md"; echo; cat "$repo/environments/hako/instructions.md") > ~/.claude/system-prompt.md
 cp -r "$repo/global/skills" ~/.claude/skills
-# Itoguchi の wait_command（呼ばれるまで待つコマンドを返す）は、次の呼びかけが新しいターンとして届くので使わせない。
+# Itoguchi の wait_url（呼ばれるまで待つためのURLを返す）は、次の呼びかけが新しいターンとして届くので使わせない。
 # Claude Code の予約のツールは、ターンごとに終了する -p では発火しないので使わせない。予約は later-mcp.ts のツールで行う。
 # MCPのツールは、既定では名前だけが見え、説明は探したときに読まれる。予約のツールに気づけるよう、説明を始めから見せる。
 cat > ~/.claude/settings.json <<'JSON'
@@ -36,7 +36,7 @@ cat > ~/.claude/settings.json <<'JSON'
   "syncClaudeAiSkills": false,
   "syncClaudeAiPlugins": false,
   "env": { "ENABLE_TOOL_SEARCH": "false" },
-  "permissions": { "deny": ["mcp__itoguchi__wait_command", "CronCreate", "CronDelete", "CronList", "ScheduleWakeup"] }
+  "permissions": { "deny": ["mcp__itoguchi__wait_url", "CronCreate", "CronDelete", "CronList", "ScheduleWakeup"] }
 }
 JSON
 # ${ITOGUCHI_TOKEN} は展開せずに書く。接続のときに代わりの値が入り、sbx の中継が本物に差し替える。
