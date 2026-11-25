@@ -1,12 +1,16 @@
 // ホストで常駐し、Itoguchi で呼ばれたら、そのスレッドのVM（sbx）でハーネスを非対話で1ターン動かす。
-//   bun hako.ts            知らせを待ち受ける
+//   bun hako.ts            呼びかけを待ち受ける。ITOGUCHI_API_KEY に、呼ばれるエージェントのAPIキーを渡す
 //   bun hako.ts template   リモートの install.sh で、VMの元になるテンプレートを作り直す
 // VMは起こしたままにする。
-import { createHash, timingSafeEqual } from "node:crypto";
-import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
 
 const remote = "https://github.com/RateteDev/harness-settings";
 const template = "hako-base:latest";
+const itoguchi = "https://itoguchi.ratete.dev";
+/** APIキーの名前で呼ばれたときに、VMで動かすハーネス。 */
+const harness = "claude";
 
 const log = (msg: string, fields: Record<string, unknown> = {}) => console.log(JSON.stringify({ msg, ...fields }));
 
@@ -47,26 +51,18 @@ async function buildTemplate() {
   }
 }
 
-type Event = { type: string; thread: { id: string; url: string }; post: { seq: number; author: { name: string }; mentions: string[] } };
+/** 呼ばれた場所。本文は載っておらず、ハーネスがスレッドを読みに行く。 */
+type Events = { cursor: number; mentions: { thread: string; seq: number }[] };
 
-function serve() {
-  const env = (name: string) => {
-    const v = process.env[name]?.trim();
-    if (!v) throw new Error(`${name} がありません`);
-    return v;
-  };
-  const receivePath = `/events/${env("RECEIVE_TOKEN")}`;
-  const noticeUrl = env("NOTICE_URL");
-  // 呼ばれる名前とハーネスの組。例: claude:claude
-  const agents = new Map(
-    env("AGENTS")
-      .split(",")
-      .map((pair) => pair.split(":").map((s) => s.trim()) as [string, string]),
-  );
+async function serve() {
+  const key = process.env.ITOGUCHI_API_KEY?.trim();
+  if (!key) throw new Error("ITOGUCHI_API_KEY がありません");
+  const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+  // どこまで受け取ったか。止まっていた間の呼びかけを、次に動いたときに続きから受け取る。
+  const cursorFile = join(process.env.XDG_STATE_HOME ?? join(homedir(), ".local", "state"), "hako", "cursor");
 
   async function notice(thread: string, text: string) {
-    // 受け取り用のURLそのものが秘密なので、失敗の理由は記録しない。
-    await fetch(noticeUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ thread, text }) }).catch(() => {});
+    await fetch(`${itoguchi}/api/threads/${thread}/notices`, { method: "POST", headers, body: JSON.stringify({ text }) }).catch(() => {});
   }
 
   const vmName = /^hako-[0-9a-f]{12}$/;
@@ -83,57 +79,68 @@ function serve() {
   }
 
   /** スレッドごとの、まだ動かしていない呼びかけ。 */
-  const waiting = new Map<string, { harness: string; prompt: string }[]>();
+  const waiting = new Map<string, string[]>();
 
-  /** 同じVMでは1つずつ動かし、途中に呼ばれた分はハーネスごとに1つのターンにまとめる。 */
+  /** 同じVMでは1つずつ動かし、途中に呼ばれた分は次の1つのターンにまとめる。 */
   async function drain(thread: string) {
     const vm = `hako-${createHash("sha256").update(thread).digest("hex").slice(0, 12)}`;
-    const calls = waiting.get(thread) ?? [];
-    while (calls.length > 0) {
-      const harness = calls[0].harness;
-      const mine = calls.filter((c) => c.harness === harness);
-      calls.splice(0, calls.length, ...calls.filter((c) => c.harness !== harness));
+    const prompts = waiting.get(thread) ?? [];
+    while (prompts.length > 0) {
+      const prompt = prompts.splice(0).join("\n\n");
       try {
         if (!(await hasVm(vm))) {
           if (!(await list("template")).some((t) => t.endsWith(`/${template}`))) await buildTemplate();
           await create(vm, "-t", template);
         }
         hold(vm);
-        await sbx("exec", vm, "hako", "turn", harness, mine.map((c) => c.prompt).join("\n\n"));
-        log("ターンが終わりました", { thread, vm, harness });
+        await sbx("exec", vm, "hako", "turn", harness, prompt);
+        log("ターンが終わりました", { thread, vm });
       } catch (e) {
-        log("ターンを動かせませんでした", { thread, vm, harness, error: String(e) });
-        await notice(thread, `${harness} のターンを動かせませんでした`);
+        log("ターンを動かせませんでした", { thread, vm, error: String(e) });
+        await notice(thread, "ターンを動かせませんでした");
       }
     }
     waiting.delete(thread);
   }
 
-  Bun.serve({
-    hostname: "127.0.0.1",
-    port: Number(env("PORT")),
-    async fetch(req) {
-      const path = new URL(req.url).pathname;
-      const ok = req.method === "POST" && path.length === receivePath.length && timingSafeEqual(Buffer.from(path), Buffer.from(receivePath));
-      if (!ok) return new Response("not found", { status: 404 });
-      const event = (await req.json().catch(() => null)) as Event | null;
-      if (event?.type !== "post.created") return new Response("ok");
-      const { thread, post } = event;
-      const prompt = `Itoguchi のスレッド ${thread.url} （id: ${thread.id}）の seq ${post.seq} で、${post.author.name} から呼ばれました。`;
-      const called = [...new Set(post.mentions.map((name) => agents.get(name)).filter((h) => h !== undefined))].map((harness) => ({ harness, prompt }));
-      // Itoguchi は知らせを送り直さないため、すぐに応え、VMの操作は後で行う。
-      const calls = waiting.get(thread.id);
-      if (calls) calls.push(...called);
-      else if (called.length > 0) {
-        waiting.set(thread.id, called);
-        drain(thread.id);
-      }
-      return new Response("ok");
-    },
-  });
+  function call(thread: string, seq: number) {
+    const prompt = `Itoguchi のスレッド ${itoguchi}/#/t/${thread} （id: ${thread}）の seq ${seq} で呼ばれました。`;
+    const prompts = waiting.get(thread);
+    if (prompts) prompts.push(prompt);
+    else {
+      waiting.set(thread, [prompt]);
+      drain(thread);
+    }
+  }
+
   list("vm").then((vms) => vms.filter((vm) => vmName.test(vm)).forEach(hold));
-  log("待ち受けています");
+  const saved = await Bun.file(cursorFile).text().catch(() => "");
+  let cursor = saved ? Number(saved) : undefined;
+  log("待ち受けています", { cursor });
+  // 呼ばれるまで応えが返らないロングポーリング。こちらから繋ぐだけなので、外から届くURLは要らない。
+  for (;;) {
+    try {
+      const res = await fetch(`${itoguchi}/api/events${cursor === undefined ? "" : `?after=${cursor}`}`, { headers });
+      // キーが取り消されたら、繰り返しても直らないので止まる。
+      if (res.status === 401) throw new Error("ITOGUCHI_API_KEY が受け付けられませんでした");
+      if (!res.ok) {
+        log("呼びかけを確かめられませんでした", { status: res.status });
+        await Bun.sleep(5000);
+        continue;
+      }
+      const events = (await res.json()) as Events;
+      for (const m of events.mentions) call(m.thread, m.seq);
+      if (events.cursor !== cursor) {
+        cursor = events.cursor;
+        await Bun.write(cursorFile, String(cursor));
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith("ITOGUCHI_API_KEY")) throw e;
+      log("Itoguchi に繋げませんでした", { error: String(e) });
+      await Bun.sleep(5000);
+    }
+  }
 }
 
 if (process.argv[2] === "template") await buildTemplate();
-else serve();
+else await serve();
